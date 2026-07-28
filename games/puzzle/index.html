@@ -416,7 +416,7 @@ function renderLevelCards() {
     card.innerHTML = `
       <div class="card-img"><img src="${lv.image}" alt="${lv.name}" draggable="false"></div>
       <div class="card-label">${lv.name}
-        ${best.stars ? `<div class="card-best">最佳: ${best.stars ? '★'.repeat(best.stars) : '-'} ${best.time || ''}s</div>` : ''}
+        ${best.stars ? `<div class="card-best">最佳: ${'★'.repeat(best.stars)} ${best.time || ''}s</div>` : ''}
       </div>
     `;
     card.addEventListener('click', () => openDiffModal(lv));
@@ -546,13 +546,7 @@ function initPuzzle(level, diff) {
   document.getElementById('bgRef').style.backgroundImage = `url(${level.image})`;
   document.getElementById('bgRef').style.backgroundSize = 'cover';
 
-  // 重置拼图区状态
-  area.style.transform = '';
-  area.style.boxShadow = '';
-  area.style.transition = '';
-  document.getElementById('frameGlow').classList.remove('active');
-  document.getElementById('completeOverlay').classList.remove('active');
-  document.getElementById('confettiCanvas').classList.add('u-hidden');
+  resetPuzzleAreaState();
 
   pieces = [];
   moveCount = 0;
@@ -928,9 +922,7 @@ document.getElementById('btnRestart').addEventListener('click', () => {
   initPuzzle(currentLevel, currentDiff);
 });
 
-function restartPuzzle() {
-  document.getElementById('completeOverlay2').classList.add('u-hidden');
-  // 重置完成动画状态
+function resetPuzzleAreaState() {
   const area = document.getElementById('puzzleArea');
   area.style.transform = '';
   area.style.boxShadow = '';
@@ -938,17 +930,17 @@ function restartPuzzle() {
   document.getElementById('frameGlow').classList.remove('active');
   document.getElementById('completeOverlay').classList.remove('active');
   document.getElementById('confettiCanvas').classList.add('u-hidden');
+}
+
+function restartPuzzle() {
+  document.getElementById('completeOverlay2').classList.add('u-hidden');
+  resetPuzzleAreaState();
   if (currentLevel) initPuzzle(currentLevel, currentDiff);
 }
 
 function closeCompleteModal() {
   document.getElementById('completeOverlay2').classList.add('u-hidden');
-  const area = document.getElementById('puzzleArea');
-  area.style.transform = '';
-  area.style.boxShadow = '';
-  document.getElementById('frameGlow').classList.remove('active');
-  document.getElementById('completeOverlay').classList.remove('active');
-  document.getElementById('confettiCanvas').classList.add('u-hidden');
+  resetPuzzleAreaState();
   showLevelSelect();
 }
 

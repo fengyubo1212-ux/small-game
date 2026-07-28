@@ -733,8 +733,6 @@ if (window.matchMedia('(hover: hover)').matches) {
 
     blocks.forEach((el, i) => {
       const depth = (i % 3 + 1) * 4;
-      const curTransform = window.getComputedStyle(el).transform;
-      // 在 CSS animation 基础上叠加视差偏移
       el.style.translate = `${x * depth}px ${y * depth}px`;
     });
   });
@@ -774,33 +772,20 @@ if (featuredCard) featuredObserver.observe(featuredCard);
 
 // ===== Stats 数据聚合 =====
 (function loadStats() {
-  const gamesOnline = 2;
-  document.getElementById('statGames').textContent = gamesOnline;
+  document.getElementById('statGames').textContent = '2';
 
-  // 聚合游玩次数
-  let totalPlays = 0;
+  let totalPlays = 0, bestStar = 0;
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key.startsWith('match3_') || key.startsWith('puzzle_')) {
-      try {
-        const data = JSON.parse(localStorage.getItem(key));
-        if (data && data.time) totalPlays++; // 有完成记录就算一次游玩
-      } catch(e) {}
-    }
+    if (!key.startsWith('match3_') && !key.startsWith('puzzle_')) continue;
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      if (!data) continue;
+      if (data.time) totalPlays++;
+      if (data.stars > bestStar) bestStar = data.stars;
+    } catch(e) { /* skip corrupt entries */ }
   }
   document.getElementById('statPlays').textContent = totalPlays || '-';
-
-  // 找最高星级
-  let bestStar = 0;
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith('match3_') || key.startsWith('puzzle_')) {
-      try {
-        const data = JSON.parse(localStorage.getItem(key));
-        if (data && data.stars && data.stars > bestStar) bestStar = data.stars;
-      } catch(e) {}
-    }
-  }
   document.getElementById('statBest').textContent = bestStar ? '★'.repeat(bestStar) : '-';
 })();
 
