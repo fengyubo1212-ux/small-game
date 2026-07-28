@@ -5,52 +5,148 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>小游戏合集</title>
 <style>
+/* ===== CSS 变量 ===== */
+:root {
+  --bg-from: #F6F7FB;
+  --bg-mid: #E8EEFF;
+  --bg-to: #FFF7F2;
+  --glass-bg: rgba(255,255,255,.62);
+  --glass-border: rgba(255,255,255,.45);
+  --glass-shadow: 0 20px 50px rgba(0,0,0,.1);
+  --glass-hover-shadow: 0 28px 64px rgba(0,0,0,.15);
+  --accent: #667eea;
+  --accent-2: #764ba2;
+  --text-primary: #1c1c1e;
+  --text-secondary: #8e8e93;
+  --radius-card: 24px;
+  --radius-btn: 16px;
+  --font-display: "MiSans", "HarmonyOS Sans", system-ui, -apple-system, sans-serif;
+  --transition-smooth: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   display: flex;
   justify-content: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #e8e0f0 0%, #d0e0f0 100%);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100dvh;
+  background: linear-gradient(170deg, var(--bg-from) 0%, var(--bg-mid) 40%, var(--bg-to) 100%);
+  font-family: var(--font-display);
   -webkit-user-select: none;
   user-select: none;
+  overflow-x: hidden;
+  position: relative;
 }
 
+/* ===== 背景光球 ===== */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(130px);
+  opacity: 0.28;
+}
+
+.bg-orb.orb-blue {
+  width: 320px; height: 320px;
+  background: #5B8DEF;
+  top: -120px; left: -80px;
+}
+
+.bg-orb.orb-purple {
+  width: 260px; height: 260px;
+  background: #9B7BFF;
+  top: 50%; right: -100px;
+}
+
+.bg-orb.orb-orange {
+  width: 240px; height: 240px;
+  background: #FF9A76;
+  bottom: -80px; left: 20%;
+}
+
+/* ===== 大厅主体 ===== */
 .lobby {
   width: 100%;
-  max-width: 400px;
-  padding: 32px 16px;
+  max-width: 420px;
+  padding: 40px 20px 28px;
+  position: relative;
+  z-index: 1;
 }
 
+/* ===== 头部 ===== */
 .header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
-.header .icon { font-size: 40px; margin-bottom: 6px; }
-.header .title { font-size: 24px; font-weight: 800; color: #333; }
+.header .logo {
+  width: 64px; height: 64px;
+  margin: 0 auto 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  box-shadow: 0 8px 24px rgba(102,126,234,.18);
+}
 
+.header .title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.header .subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+/* ===== 推荐区域 ===== */
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 14px;
+  padding-left: 4px;
+}
+
+/* ===== 游戏卡片 Grid ===== */
 .games-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .game-card {
-  background: white;
-  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--glass-shadow);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
 .game-card:active {
-  transform: scale(0.96);
-  box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+  transform: scale(0.95);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
 }
 
 .game-card .cover {
@@ -63,46 +159,107 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease;
+}
+
+.game-card:active .cover img {
+  transform: scale(1.06);
 }
 
 .game-card .name {
   text-align: center;
-  padding: 12px 8px;
+  padding: 14px 8px;
   font-size: 14px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.2px;
+  background: rgba(255,255,255,.3);
 }
 
+/* ===== 占位卡片 ===== */
 .game-card.placeholder {
   cursor: default;
 }
 
 .game-card.placeholder:active {
   transform: none;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--glass-shadow);
 }
 
 .game-card.placeholder .cover {
-  background: #f0edf5;
+  background: rgba(255,255,255,.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
-  color: #c0b8d0;
+  font-size: 32px;
 }
 
 .game-card.placeholder .name {
-  color: #b0b0b0;
+  color: var(--text-secondary);
+}
+
+/* ===== 更多游戏区域 ===== */
+.more-section {
+  margin-bottom: 32px;
+}
+
+.more-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.more-chip {
+  background: rgba(255,255,255,.45);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 14px;
+  padding: 20px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+
+.more-chip .chip-icon {
+  font-size: 26px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* ===== 底部 ===== */
+.footer {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.footer .version {
+  font-size: 11px;
+  color: #c0c0c8;
+  letter-spacing: 0.5px;
+}
+
+.footer .author {
+  font-size: 11px;
+  color: #c8c8d0;
+  margin-top: 2px;
 }
 </style>
 </head>
 <body>
+
+<div class="bg-orb orb-blue"></div>
+<div class="bg-orb orb-purple"></div>
+<div class="bg-orb orb-orange"></div>
+
 <div class="lobby">
   <div class="header">
-    <div class="icon">🎮</div>
+    <div class="logo">🎮</div>
     <div class="title">小游戏合集</div>
+    <div class="subtitle">碎片时间，轻松一刻</div>
   </div>
 
+  <div class="section-label">推荐</div>
   <div class="games-grid">
     <a class="game-card" href="match3.html">
       <div class="cover"><img src="test1.jpg" alt="图片消消乐" draggable="false"></div>
@@ -113,12 +270,28 @@ body {
       <div class="cover">🔜</div>
       <div class="name">敬请期待</div>
     </div>
+  </div>
 
-    <div class="game-card placeholder">
-      <div class="cover">🔜</div>
-      <div class="name">敬请期待</div>
+  <div class="more-section">
+    <div class="section-label">即将上线</div>
+    <div class="more-grid">
+      <div class="more-chip">
+        <span class="chip-icon">🧩</span>拼图大师
+      </div>
+      <div class="more-chip">
+        <span class="chip-icon">🐍</span>贪吃蛇
+      </div>
+      <div class="more-chip">
+        <span class="chip-icon">🔢</span>2048
+      </div>
     </div>
   </div>
+
+  <div class="footer">
+    <div class="version">v1.0.0</div>
+    <div class="author">made with care</div>
+  </div>
 </div>
+
 </body>
 </html>
