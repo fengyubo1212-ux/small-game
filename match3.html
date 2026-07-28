@@ -19,10 +19,121 @@ body {
   user-select: none;
 }
 
-.game-container {
+/* ===== 地图视图 ===== */
+.map-container {
   width: 100%;
   max-width: 400px;
   padding: 12px;
+}
+
+.map-header {
+  text-align: center;
+  padding: 20px 0 10px;
+}
+
+.map-icon { font-size: 40px; margin-bottom: 4px; }
+
+.map-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.map-subtitle {
+  font-size: 13px;
+  color: #999;
+}
+
+.map-path {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0 20px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.level-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.level-dot {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.2s ease;
+}
+
+.level-node.done .level-dot {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+}
+
+.level-node.current .level-dot {
+  background: linear-gradient(135deg, #f5af19, #f12711);
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+  box-shadow: 0 0 0 6px rgba(245,175,25,0.25);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.level-node.locked .level-dot {
+  background: #d0d0d0;
+  color: #999;
+}
+
+.level-connector {
+  width: 3px;
+  height: 28px;
+  border-radius: 2px;
+}
+
+.level-node.done + .level-connector,
+.level-node.current + .level-connector,
+.level-connector.done,
+.level-connector.current {
+  background: #43e97b;
+}
+
+.level-connector.locked {
+  background: #e0e0e0;
+}
+
+.level-label {
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.level-node.current .level-label {
+  color: #f12711;
+  font-weight: 600;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 6px rgba(245,175,25,0.25); }
+  50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(245,175,25,0.1); }
+}
+
+.map-hint {
+  text-align: center;
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.8;
+  padding: 8px 20px;
+  margin-top: 4px;
 }
 
 .back-bar {
@@ -39,6 +150,13 @@ body {
 }
 
 .back-bar .arrow { font-size: 18px; }
+
+/* ===== 游戏视图 ===== */
+.game-view {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px;
+}
 
 .status-bar {
   background: white;
@@ -122,15 +240,6 @@ body {
   transform: scale(0.5);
 }
 
-.cell.new-cell {
-  animation: dropIn 0.3s ease-in;
-}
-
-@keyframes dropIn {
-  from { transform: translateY(-60px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
 .combo-popup {
   position: fixed;
   top: 50%;
@@ -187,9 +296,27 @@ body {
 </style>
 </head>
 <body>
-<div class="game-container">
+
+<!-- ===== 地图视图 ===== -->
+<div class="map-container" id="mapView">
   <div class="back-bar" onclick="location.href='index.html'">
     <span class="arrow">←</span> 返回大厅
+  </div>
+  <div class="map-header">
+    <div class="map-icon">🗺️</div>
+    <div class="map-title">图片消消乐</div>
+    <div class="map-subtitle" id="maxLevelText">最高关卡: 第 1 关</div>
+  </div>
+  <div class="map-path" id="mapPath"></div>
+  <div class="map-hint">
+    交换相邻图片 → 三个相同连成一线 → 消除得分<br>达成目标分数即可过关
+  </div>
+</div>
+
+<!-- ===== 游戏视图 ===== -->
+<div class="game-view" id="gameView" style="display:none">
+  <div class="back-bar" onclick="showMap()">
+    <span class="arrow">←</span> 关卡地图
   </div>
   <div class="status-bar">
     <div class="level-title" id="levelTitle">第 1 关</div>
@@ -207,6 +334,75 @@ body {
 <div id="comboContainer"></div>
 
 <script>
+// ===== 进度存储 =====
+function getMaxLevel() {
+  return parseInt(localStorage.getItem('match3_max_level') || '1');
+}
+
+function setMaxLevel(n) {
+  const current = getMaxLevel();
+  if (n > current) localStorage.setItem('match3_max_level', n);
+}
+
+// ===== 地图渲染 =====
+function renderMap() {
+  const maxLevel = getMaxLevel();
+  document.getElementById('maxLevelText').textContent = `最高关卡: 第 ${maxLevel} 关`;
+
+  const path = document.getElementById('mapPath');
+  path.innerHTML = '';
+
+  const TOTAL_LEVELS = 15;
+
+  for (let i = 1; i <= TOTAL_LEVELS; i++) {
+    let status;
+    if (i < maxLevel) status = 'done';
+    else if (i === maxLevel) status = 'current';
+    else status = 'locked';
+
+    let icon;
+    if (status === 'done') icon = '✅';
+    else if (status === 'current') icon = '🔥';
+    else icon = '🔒';
+
+    const node = document.createElement('div');
+    node.className = `level-node ${status}`;
+    node.innerHTML = `
+      <div class="level-dot" data-level="${i}">${icon}</div>
+      <div class="level-label">第 ${i} 关</div>
+    `;
+
+    const dot = node.querySelector('.level-dot');
+    dot.addEventListener('click', () => {
+      if (status === 'locked') return;
+      startLevel(i);
+    });
+
+    path.appendChild(node);
+
+    if (i < TOTAL_LEVELS) {
+      const conn = document.createElement('div');
+      conn.className = `level-connector ${status === 'locked' ? 'locked' : status}`;
+      path.appendChild(conn);
+    }
+  }
+}
+
+// ===== 视图切换 =====
+function showMap() {
+  document.getElementById('mapView').style.display = 'block';
+  document.getElementById('gameView').style.display = 'none';
+  document.getElementById('overlayContainer').innerHTML = '';
+  renderMap();
+}
+
+function startLevel(n) {
+  document.getElementById('mapView').style.display = 'none';
+  document.getElementById('gameView').style.display = 'block';
+  state.level = n;
+  resetLevel();
+}
+
 // ===== 游戏状态 =====
 const ROWS = 6, COLS = 6;
 const IMAGES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
@@ -352,7 +548,6 @@ function swap(r1, c1, r2, c2) {
 function findMatches() {
   const matched = new Set();
 
-  // 横向扫描
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS - 2; c++) {
       const type = board[r][c];
@@ -366,7 +561,6 @@ function findMatches() {
     }
   }
 
-  // 纵向扫描
   for (let c = 0; c < COLS; c++) {
     for (let r = 0; r < ROWS - 2; r++) {
       const type = board[r][c];
@@ -569,17 +763,16 @@ function checkGameState() {
   if (state.score >= state.target) {
     state.gameStatus = 'win';
     const nextLevel = state.level + 1;
-    showOverlay('🎉', '恭喜过关！', `第 ${state.level} 关完成`, '下一关', () => {
-      state.level = nextLevel;
-      resetLevel();
+    setMaxLevel(nextLevel);
+    showOverlay('🎉', '恭喜过关！', `第 ${state.level} 关完成`, '返回地图', () => {
+      showMap();
     });
     return;
   }
 
   if (state.stepsLeft <= 0) {
     state.gameStatus = 'lose';
-    showOverlay('😢', '步数用完', `得分: ${state.score} / ${state.target}`, '重新开始', () => {
-      state.level = 1;
+    showOverlay('😢', '步数用完', `得分: ${state.score} / ${state.target}`, '重试本关', () => {
       resetLevel();
     });
     return;
@@ -587,8 +780,7 @@ function checkGameState() {
 
   if (checkDeadlock()) {
     state.gameStatus = 'lose';
-    showOverlay('🔒', '死局！', `无可消除的方块，得分: ${state.score}`, '重新开始', () => {
-      state.level = 1;
+    showOverlay('🔒', '死局！', `无可消除的方块，得分: ${state.score}`, '重试本关', () => {
       resetLevel();
     });
     return;
@@ -611,7 +803,7 @@ function updateScore(add) {
 // ===== 启动 =====
 document.getElementById('board').addEventListener('touchmove', handleTouchMove, { passive: false });
 document.getElementById('board').addEventListener('touchend', handleTouchEnd);
-resetLevel();
+renderMap();
 </script>
 </body>
 </html>
