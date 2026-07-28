@@ -112,37 +112,76 @@ body {
   text-align: center;
 }
 
-/* 浮动游戏元素 */
-.float-blocks { position:relative; width:100%; max-width:380px; height:120px; margin-bottom:20px; }
+/* Hero 中央焦点：游戏预览卡片 */
+.hero-object {
+  position: relative; z-index:3;
+  width: 180px; height: 220px;
+  margin: 0 auto 32px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(20,10,40,.6);
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: 0 20px 48px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06) inset;
+  animation: heroCardFloat 6s var(--ease-out) infinite;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.hero-object .ho-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap:2px; padding:12px;
+  opacity:.9;
+}
+
+.hero-object .ho-cell {
+  aspect-ratio:1; border-radius:6px;
+  background-size:cover; background-position:center;
+}
+
+.hero-object .ho-label {
+  position: absolute; bottom:0; left:0; right:0;
+  padding: 10px 12px 12px;
+  background: linear-gradient(0deg, rgba(8,4,20,.85), transparent);
+  font-size: 11px; font-weight:700; letter-spacing:.5px;
+  color: rgba(255,255,255,.55); text-align:center;
+}
+
+@keyframes heroCardFloat {
+  0%,100%{ transform: translateY(0); }
+  50%{ transform: translateY(-8px); }
+}
+
+/* 环绕碎片 */
+.float-blocks { position:absolute; inset:0; pointer-events:none; z-index:2; }
 
 .floating-block {
   position: absolute;
-  width: 52px; height: 52px;
-  border-radius: 12px;
+  width: 40px; height: 40px;
+  border-radius: 10px;
   background-size: cover; background-position:center;
-  box-shadow: 0 4px 16px rgba(0,0,0,.35);
-  animation: blockFloat var(--dur) ease-in-out infinite;
+  box-shadow: 0 3px 12px rgba(0,0,0,.35);
+  animation: blockFloat var(--dur) var(--ease-out) infinite;
   animation-delay: var(--delay);
 }
 
 @keyframes blockFloat {
   0%,100%{ transform: translateY(0) rotate(var(--rot)); }
-  50%{ transform: translateY(-14px) rotate(calc(var(--rot) + 3deg)); }
+  50%{ transform: translateY(-8px) rotate(calc(var(--rot) + 2deg)); }
 }
 
 .floating-piece {
   position: absolute;
-  width: 44px; height: 44px;
-  border-radius: 8px;
-  background-size: 176px 176px;
-  box-shadow: 0 3px 12px rgba(0,0,0,.3);
-  animation: pieceFloat var(--dur) ease-in-out infinite;
+  width: 36px; height: 36px;
+  border-radius: 7px;
+  background-size: 144px 144px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  animation: pieceFloat var(--dur) var(--ease-out) infinite;
   animation-delay: var(--delay);
 }
 
 @keyframes pieceFloat {
   0%,100%{ transform: translateY(0) rotate(var(--rot)); }
-  50%{ transform: translateY(-10px) rotate(calc(var(--rot) - 4deg)); }
+  50%{ transform: translateY(-6px) rotate(calc(var(--rot) - 2deg)); }
 }
 
 /* 标题 */
@@ -195,14 +234,14 @@ body {
 .scroll-hint {
   position: absolute; bottom: 28px; left:50%; transform:translateX(-50%);
   display: flex; flex-direction:column; align-items:center; gap:6px;
-  opacity: .5; animation: hintBounce 2s ease-in-out infinite;
+  opacity: .4;
 }
-.scroll-hint span { font-size: 11px; color: rgba(255,255,255,.3); letter-spacing:1px; }
-.scroll-hint .arrow { font-size: 16px; color: rgba(255,255,255,.25); }
+.scroll-hint span { font-size: 11px; color: rgba(255,255,255,.25); letter-spacing:1px; }
+.scroll-hint .arrow { font-size: 16px; color: rgba(255,255,255,.2); animation: hintPulse 2.2s var(--ease-out) infinite; }
 
-@keyframes hintBounce {
-  0%,100%{ transform:translateX(-50%) translateY(0); }
-  50%{ transform:translateX(-50%) translateY(-6px); }
+@keyframes hintPulse {
+  0%,100%{ opacity:.3; transform:translateY(0); }
+  50%{ opacity:.7; transform:translateY(-4px); }
 }
 
 /* =============================================================
@@ -237,51 +276,58 @@ body {
   cursor: pointer;
   text-decoration: none;
   display: block;
+  transform: scale(.95);
+  transition: transform .8s var(--ease-out), opacity .8s var(--ease-out);
 }
+.featured-card.revealed { transform: scale(1); }
 
 .featured-card .fc-bg {
-  width:100%; aspect-ratio: 4/3; object-fit:cover; display:block;
-  transition: transform .5s var(--ease-out);
+  width:100%; aspect-ratio: 3/4; object-fit:cover; display:block;
+  transition: transform .6s var(--ease-out);
 }
-.featured-card:hover .fc-bg { transform: scale(1.04); }
+.featured-card:hover .fc-bg { transform: scale(1.03); }
 
 .featured-card .fc-gradient {
   position: absolute; inset:0;
-  background: linear-gradient(0deg, rgba(8,4,20,.85) 0%, rgba(8,4,20,.15) 55%, rgba(8,4,20,.05) 100%);
+  background: linear-gradient(0deg,
+    rgba(8,4,20,.92) 0%,
+    rgba(8,4,20,.55) 30%,
+    rgba(8,4,20,.08) 60%,
+    rgba(8,4,20,0) 75%);
   pointer-events:none;
 }
 
 .featured-card .fc-content {
   position: absolute; bottom:0; left:0; right:0;
-  padding: 24px 20px 22px;
+  padding: 28px 22px 24px;
 }
 
 .featured-card .fc-tag {
   display: inline-block; padding: 3px 12px;
   border-radius:50px; font-size:10px; font-weight:700; letter-spacing:1px;
-  background: rgba(255,255,255,.12); color: rgba(255,255,255,.7);
-  margin-bottom: 8px;
+  background: rgba(255,255,255,.1); color: rgba(255,255,255,.65);
+  margin-bottom: 10px;
 }
 
 .featured-card .fc-title {
-  font-size: 24px; font-weight:900; color:#fff; letter-spacing:-.3px;
+  font-size: 28px; font-weight:900; color:#fff; letter-spacing:-.5px;
 }
 
 .featured-card .fc-desc {
-  font-size: 13px; color: rgba(255,255,255,.5); margin-top: 4px; line-height:1.5;
+  font-size: 13px; color: rgba(255,255,255,.42); margin-top: 6px; line-height:1.6; max-width:280px;
 }
 
 .featured-card .fc-btn {
-  display: inline-block; margin-top: 14px;
-  padding: 10px 24px; border-radius:50px;
+  display: inline-block; margin-top: 16px;
+  padding: 11px 26px; border-radius:50px;
   font-size: 13px; font-weight:700; color:#fff; letter-spacing:.5px;
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,.15);
-  transition: background .2s var(--ease-out);
+  border: 1px solid rgba(255,255,255,.12);
+  transition: background .25s var(--ease-out);
 }
-.featured-card:hover .fc-btn { background: rgba(255,255,255,.2); }
+.featured-card:hover .fc-btn { background: rgba(255,255,255,.18); }
 
 /* =============================================================
    COLLECTION
@@ -381,9 +427,9 @@ body {
 
 .sub-card .sc-cover-placeholder {
   aspect-ratio: 1;
-  background: rgba(255,255,255,.025);
+  background: linear-gradient(135deg, rgba(255,255,255,.02), rgba(255,255,255,.04));
   display: flex; align-items:center; justify-content:center;
-  font-size: 36px;
+  font-size: 32px;
 }
 
 .sub-card .sc-info { padding: 12px 12px 14px; }
@@ -474,6 +520,12 @@ body {
 <section class="hero" id="hero">
   <div class="float-blocks" id="floatBlocks"></div>
 
+  <!-- 中央预览卡片 -->
+  <div class="hero-object" id="heroObject">
+    <div class="ho-grid" id="hoGrid"></div>
+    <div class="ho-label">MATCH 3 · JIGSAW</div>
+  </div>
+
   <div class="hero-brand">
     <div class="hero-logo">MINIVERSE</div>
     <div class="hero-slogan">你的随身游戏宇宙</div>
@@ -499,14 +551,14 @@ body {
 <section class="section" id="featured">
   <div class="reveal">
     <div class="section-label">本周推荐</div>
-    <a class="featured-card" href="games/puzzle/index.html" data-transition>
+    <a class="featured-card" id="featuredCard" href="games/puzzle/index.html" data-transition>
       <img class="fc-bg" src="test3.jpg" alt="图片拼图" draggable="false">
       <div class="fc-gradient"></div>
       <div class="fc-content">
         <div class="fc-tag">FEATURED</div>
         <div class="fc-title">图片拼图</div>
-        <div class="fc-desc">把你的照片变成拼图 · 3 种难度 · 流畅拖拽吸附</div>
-        <span class="fc-btn">开始拼图 →</span>
+        <div class="fc-desc">把你的照片变成拼图，3 种难度任选，拖拽吸附体验流畅</div>
+        <span class="fc-btn">开始拼图</span>
       </div>
     </a>
   </div>
@@ -607,17 +659,30 @@ body {
 </footer>
 
 <script>
-// ===== 浮动游戏元素生成 =====
+// ===== Hero 中央预览卡片 =====
+(function initHeroObject() {
+  const images = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
+  const grid = document.getElementById('hoGrid');
+  // 3×3 微缩棋盘，模拟游戏预览
+  const types = [0,1,2, 1,2,0, 2,0,1]; // 固定排列，看起来像真实棋盘
+  types.forEach(t => {
+    const cell = document.createElement('div');
+    cell.className = 'ho-cell';
+    cell.style.backgroundImage = `url(${images[t]})`;
+    grid.appendChild(cell);
+  });
+})();
+
+// ===== 环绕碎片 =====
 (function initFloatingElements() {
   const container = document.getElementById('floatBlocks');
   const images = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
 
-  // 消消乐方块 (type 0/1/2 对应不同照片)
   const blockConfigs = [
-    { x:8, y:10, rot:-4, dur:4.5, delay:0, img:0 },
-    { x:55, y:5, rot:3, dur:5.2, delay:.6, img:1 },
-    { x:75, y:40, rot:-6, dur:4.8, delay:1.2, img:2 },
-    { x:20, y:50, rot:5, dur:5.5, delay:.3, img:0 },
+    { x:5, y:5, rot:-3, dur:5.0, delay:0, img:0 },
+    { x:78, y:8, rot:4, dur:5.5, delay:.7, img:1 },
+    { x:82, y:55, rot:-5, dur:5.2, delay:1.4, img:2 },
+    { x:8, y:60, rot:3, dur:5.8, delay:.4, img:1 },
   ];
 
   blockConfigs.forEach(cfg => {
@@ -632,10 +697,9 @@ body {
     container.appendChild(el);
   });
 
-  // 拼图碎片 (显示图片的一部分切片)
   const pieceConfigs = [
-    { x:40, y:68, rot:-5, dur:5.8, delay:.8, col:0, row:0 },
-    { x:65, y:72, rot:4, dur:4.9, delay:1.5, col:1, row:1 },
+    { x:42, y:70, rot:-4, dur:6.0, delay:1.0, col:0, row:0 },
+    { x:58, y:75, rot:3, dur:5.3, delay:1.8, col:1, row:1 },
   ];
 
   pieceConfigs.forEach(cfg => {
@@ -647,14 +711,15 @@ body {
     el.style.setProperty('--dur', cfg.dur + 's');
     el.style.setProperty('--delay', cfg.delay + 's');
     el.style.backgroundImage = `url(${images[2]})`;
-    el.style.backgroundPosition = `-${cfg.col * 88}px -${cfg.row * 88}px`;
+    el.style.backgroundPosition = `-${cfg.col * 72}px -${cfg.row * 72}px`;
     container.appendChild(el);
   });
 })();
 
-// ===== 鼠标视差（桌面端） =====
+// ===== 鼠标视差（桌面端，使用 translate 避免重排） =====
 if (window.matchMedia('(hover: hover)').matches) {
   const hero = document.getElementById('hero');
+  const heroObj = document.getElementById('heroObject');
   const blocks = hero.querySelectorAll('.floating-block, .floating-piece');
 
   hero.addEventListener('mousemove', function(e) {
@@ -662,28 +727,50 @@ if (window.matchMedia('(hover: hover)').matches) {
     const x = (e.clientX - rect.left) / rect.width - .5;
     const y = (e.clientY - rect.top) / rect.height - .5;
 
+    if (heroObj) {
+      heroObj.style.transform = `translate(${x * 6}px, ${y * 6}px)`;
+    }
+
     blocks.forEach((el, i) => {
-      const depth = (i % 3 + 1) * 5;
-      el.style.transform = el.style.transform.replace(/translate\([^)]+\)/, '')
-        || el.style.transform;
-      // 叠加微小位移到 CSS animation 之上
-      el.style.marginLeft = (x * depth) + 'px';
-      el.style.marginTop = (y * depth) + 'px';
+      const depth = (i % 3 + 1) * 4;
+      const curTransform = window.getComputedStyle(el).transform;
+      // 在 CSS animation 基础上叠加视差偏移
+      el.style.translate = `${x * depth}px ${y * depth}px`;
     });
+  });
+
+  hero.addEventListener('mouseleave', () => {
+    if (heroObj) heroObj.style.transform = '';
+    blocks.forEach(el => { el.style.translate = ''; });
   });
 }
 
 // ===== 滚动揭示 =====
-const observer = new IntersectionObserver((entries) => {
+const revealObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
       entry.target.classList.add('visible');
-      observer.unobserve(entry.target);
+      revealObserver.unobserve(entry.target);
     }
   });
-}, { threshold: 0.18, rootMargin: '0px 0px -30px 0px' });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
 
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+// Featured 特殊揭示：scale 动画 + 延迟
+const featuredObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      setTimeout(() => {
+        entry.target.classList.add('revealed');
+      }, 200);
+      featuredObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.25 });
+
+const featuredCard = document.getElementById('featuredCard');
+if (featuredCard) featuredObserver.observe(featuredCard);
 
 // ===== Stats 数据聚合 =====
 (function loadStats() {
