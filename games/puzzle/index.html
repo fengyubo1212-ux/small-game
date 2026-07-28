@@ -25,10 +25,14 @@ body {
 .view {
   position: relative; z-index:2;
   width:100%; max-width:420px; padding:16px;
-  transition: opacity .3s ease, transform .3s ease;
 }
-.view.hidden {
-  display:none; opacity:0; transform:translateY(10px);
+.view.fade-out {
+  opacity:0; transform:translateY(10px); pointer-events:none;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.view.fade-in {
+  opacity:1; transform:translateY(0);
+  transition: opacity .25s ease, transform .25s ease;
 }
 
 /* =============================================================
@@ -199,13 +203,17 @@ body {
   cursor: pointer;
   font-size: 20px;
   display: flex; align-items:center; justify-content:center;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  color: rgba(255,255,255,.55);
 }
-.tool-btn:active { background: rgba(255,255,255,.12); }
+.tool-btn:hover { background: rgba(255,255,255,.08); }
+.tool-btn:active { background: rgba(255,255,255,.14); transform:scale(.92); }
 
 /* =============================================================
    REFERENCE IMAGE PANEL
    ============================================================= */
+.u-hidden { display:none !important; }
+
 .ref-panel {
   position: fixed; inset:0; z-index:90;
   background: rgba(0,0,0,.65);
@@ -299,7 +307,7 @@ body {
 </div>
 
 <!-- ========== 游戏界面 ========== -->
-<div class="view game-view hidden" id="gameView">
+<div class="view game-view u-hidden" id="gameView">
   <div class="back-pill" onclick="showLevelSelect()">← 关卡</div>
 
   <div class="hud">
@@ -325,12 +333,12 @@ body {
 </div>
 
 <!-- ========== 参考图弹窗 ========== -->
-<div class="ref-panel hidden" id="refPanel" onclick="this.classList.add('hidden')">
+<div class="ref-panel u-hidden" id="refPanel" onclick="this.classList.add('u-hidden')">
   <img id="refImage" src="" alt="参考图">
 </div>
 
 <!-- ========== 难度选择弹窗 ========== -->
-<div id="diffOverlay" class="modal-overlay hidden">
+<div id="diffOverlay" class="modal-overlay u-hidden">
   <div class="modal-box">
     <div class="modal-icon">🧩</div>
     <div class="modal-title">选择难度</div>
@@ -346,7 +354,7 @@ body {
 </div>
 
 <!-- ========== 完成弹窗 ========== -->
-<div id="completeOverlay2" class="modal-overlay hidden">
+<div id="completeOverlay2" class="modal-overlay u-hidden">
   <div class="modal-box">
     <div class="modal-icon">🎉</div>
     <div class="modal-title">拼图完成！</div>
@@ -362,7 +370,7 @@ body {
   </div>
 </div>
 
-<canvas class="canvas-confetti hidden" id="confettiCanvas"></canvas>
+<canvas class="canvas-confetti u-hidden" id="confettiCanvas"></canvas>
 
 <script>
 // ===== 关卡配置 =====
@@ -382,7 +390,6 @@ const DIFFICULTIES = {
 // ===== 状态 =====
 let currentLevel = null;
 let currentDiff = 'normal';
-let gameState = null;
 
 // ===== 关卡选择 =====
 function renderLevelCards() {
@@ -407,41 +414,71 @@ function renderLevelCards() {
 }
 
 // ===== 难度弹窗 =====
-let pendingLevel = null;
+let _pendingLevel = null;
+
+document.getElementById('diffOverlay').addEventListener('click', function(e) {
+  const btn = e.target.closest('.diff-btn');
+  if (btn && _pendingLevel) {
+    currentDiff = btn.dataset.diff;
+    closeDiffModal();
+    startGame(_pendingLevel, currentDiff);
+  }
+});
 
 function openDiffModal(level) {
-  pendingLevel = level;
+  _pendingLevel = level;
   document.getElementById('diffLevelName').textContent = level.name;
-  document.getElementById('diffOverlay').classList.remove('hidden');
+  document.getElementById('diffOverlay').classList.remove('u-hidden');
 
+  // 高亮已记录最佳成绩的难度
   document.querySelectorAll('.diff-btn').forEach(btn => {
-    btn.onclick = () => {
-      currentDiff = btn.dataset.diff;
-      closeDiffModal();
-      startGame(level, currentDiff);
-    };
+    const diff = btn.dataset.diff;
+    const key = `puzzle_best_${level.id}_${diff}`;
+    const best = JSON.parse(localStorage.getItem(key) || '{}');
+    btn.style.borderColor = best.stars ? 'rgba(251,191,36,.35)' : '';
   });
 }
 
 function closeDiffModal() {
-  document.getElementById('diffOverlay').classList.add('hidden');
+  document.getElementById('diffOverlay').classList.add('u-hidden');
+  _pendingLevel = null;
 }
 
 // ===== 视图切换 =====
 function showLevelSelect() {
   stopTimer();
-  document.getElementById('levelView').classList.remove('hidden');
-  document.getElementById('gameView').classList.add('hidden');
-  document.getElementById('completeOverlay2').classList.add('hidden');
-  renderLevelCards();
+  const gameView = document.getElementById('gameView');
+  const levelView = document.getElementById('levelView');
+  document.getElementById('completeOverlay2').classList.add('u-hidden');
+  document.getElementById('diffOverlay').classList.add('u-hidden');
+  document.getElementById('refPanel').classList.add('u-hidden');
+
+  gameView.classList.add('fade-out');
+  gameView.classList.remove('fade-in');
+  setTimeout(() => {
+    gameView.classList.add('u-hidden');
+    levelView.classList.remove('u-hidden');
+    levelView.classList.remove('fade-out');
+    levelView.classList.add('fade-in');
+    renderLevelCards();
+  }, 250);
 }
 
 function startGame(level, diff) {
   currentLevel = level;
   currentDiff = diff;
-  document.getElementById('levelView').classList.add('hidden');
-  document.getElementById('gameView').classList.remove('hidden');
-  initPuzzle(level, diff);
+  const levelView = document.getElementById('levelView');
+  const gameView = document.getElementById('gameView');
+
+  levelView.classList.add('fade-out');
+  levelView.classList.remove('fade-in');
+  setTimeout(() => {
+    levelView.classList.add('u-hidden');
+    gameView.classList.remove('u-hidden');
+    gameView.classList.remove('fade-out');
+    gameView.classList.add('fade-in');
+    initPuzzle(level, diff);
+  }, 250);
 }
 
 // ===== 计时器 =====
@@ -452,6 +489,11 @@ function startTimer() {
   stopTimer();
   timerSeconds = 0;
   updateTimerDisplay();
+  resumeTimer();
+}
+
+function resumeTimer() {
+  if (timerInterval) return;
   timerInterval = setInterval(() => {
     timerSeconds++;
     updateTimerDisplay();
@@ -476,9 +518,11 @@ let moveCount = 0;
 let dragPiece = null;
 let dragStartX = 0, dragStartY = 0;
 let dragOffX = 0, dragOffY = 0;
+let puzzleCompleted = false;
 
 function initPuzzle(level, diff) {
   puzzleCfg = DIFFICULTIES[diff];
+  puzzleCompleted = false;
   const grid = puzzleCfg.grid;
   const area = document.getElementById('puzzleArea');
   const areaW = area.clientWidth;
@@ -490,19 +534,20 @@ function initPuzzle(level, diff) {
   document.getElementById('progressFill').style.width = '0%';
   document.getElementById('bgRef').style.backgroundImage = `url(${level.image})`;
   document.getElementById('bgRef').style.backgroundSize = 'cover';
+
+  // 重置拼图区状态
+  area.style.transform = '';
+  area.style.boxShadow = '';
+  area.style.transition = '';
   document.getElementById('frameGlow').classList.remove('active');
   document.getElementById('completeOverlay').classList.remove('active');
+  document.getElementById('confettiCanvas').classList.add('u-hidden');
 
-  // 创建拼块
   pieces = [];
   moveCount = 0;
   const layer = document.getElementById('piecesLayer');
   layer.innerHTML = '';
-  layer.style.position = 'relative';
-  layer.style.width = '100%';
-  layer.style.height = '100%';
 
-  // 生成随机位置（不重叠）
   const positions = generateScatteredPositions(grid * grid, areaW, areaH, pieceSize);
 
   for (let i = 0; i < grid * grid; i++) {
@@ -512,9 +557,6 @@ function initPuzzle(level, diff) {
 
     const el = document.createElement('div');
     el.className = 'puzzle-piece';
-    el.dataset.id = i;
-    el.dataset.correctRow = correctRow;
-    el.dataset.correctCol = correctCol;
     el.style.position = 'absolute';
     el.style.width = pieceSize + 'px';
     el.style.height = pieceSize + 'px';
@@ -523,30 +565,22 @@ function initPuzzle(level, diff) {
     el.style.backgroundImage = `url(${level.image})`;
     el.style.backgroundSize = (areaW) + 'px ' + (areaH) + 'px';
     el.style.backgroundPosition = `-${correctCol * pieceSize}px -${correctRow * pieceSize}px`;
-    el.style.borderRadius = '6px';
+    el.style.borderRadius = '8px';
     el.style.boxShadow = '0 2px 8px rgba(0,0,0,.3)';
     el.style.cursor = 'grab';
     el.style.zIndex = '1';
-    el.style.transition = 'box-shadow .15s ease, transform .15s ease';
+    el.style.transition = 'left .18s ease, top .18s ease, transform .18s ease, box-shadow .18s ease, border-radius .18s ease';
     el.style.transform = `rotate(${pos.rot}deg)`;
     el.style.touchAction = 'none';
 
-    // 鼠标事件
     el.addEventListener('mousedown', (e) => onDragStart(e, i));
-    // 触摸事件
     el.addEventListener('touchstart', (e) => onDragStart(e, i), { passive: false });
 
     layer.appendChild(el);
 
     pieces.push({
-      id: i,
-      correctRow,
-      correctCol,
-      el,
-      x: pos.x,
-      y: pos.y,
-      rotation: pos.rot,
-      placed: false,
+      id: i, correctRow, correctCol, el,
+      x: pos.x, y: pos.y, rotation: pos.rot, placed: false,
     });
   }
 
@@ -556,8 +590,8 @@ function initPuzzle(level, diff) {
 
 function generateScatteredPositions(count, areaW, areaH, pieceSize) {
   const positions = [];
-  const margin = 4;
-  const maxAttempts = 200;
+  const margin = 6;
+  const maxAttempts = 300;
 
   for (let i = 0; i < count; i++) {
     let x, y, attempts = 0;
@@ -566,10 +600,10 @@ function generateScatteredPositions(count, areaW, areaH, pieceSize) {
       y = margin + Math.random() * (areaH - pieceSize - margin * 2);
       attempts++;
     } while (attempts < maxAttempts && positions.some(p =>
-      Math.abs(p.x - x) < pieceSize * 0.85 && Math.abs(p.y - y) < pieceSize * 0.85
+      Math.abs(p.x - x) < pieceSize * 0.7 && Math.abs(p.y - y) < pieceSize * 0.7
     ));
 
-    const rot = (Math.random() - 0.5) * 10;
+    const rot = (Math.random() - 0.5) * 8;
     positions.push({ x, y, rot });
   }
   return positions;
@@ -590,11 +624,13 @@ function onDragStart(e, pieceId) {
   dragStartX = dragPiece.x;
   dragStartY = dragPiece.y;
 
+  // 清除任何进行中的过渡，确保拖拽即时响应
+  dragPiece.el.style.transition = 'none';
   dragPiece.el.style.zIndex = '10';
   dragPiece.el.style.cursor = 'grabbing';
-  dragPiece.el.style.boxShadow = '0 8px 24px rgba(0,0,0,.4)';
-  dragPiece.el.style.transform = 'scale(1.06)';
-  dragPiece.el.style.transition = 'box-shadow .15s ease, transform .15s ease';
+  dragPiece.el.style.boxShadow = '0 10px 32px rgba(0,0,0,.45)';
+  dragPiece.el.style.transform = 'scale(1.05) rotate(0deg)';
+  dragPiece.el.style.borderRadius = '8px';
 
   document.addEventListener('mousemove', onDragMove);
   document.addEventListener('mouseup', onDragEnd);
@@ -616,14 +652,14 @@ function onDragMove(e) {
   let newX = clientX - areaRect.left - dragOffX;
   let newY = clientY - areaRect.top - dragOffY;
 
-  newX = Math.max(0, Math.min(newX, areaRect.width - pieceSize));
-  newY = Math.max(0, Math.min(newY, areaRect.height - pieceSize));
+  // 允许略微溢出边界，手感更自然
+  newX = Math.max(-pieceSize * 0.2, Math.min(newX, areaRect.width - pieceSize * 0.8));
+  newY = Math.max(-pieceSize * 0.2, Math.min(newY, areaRect.height - pieceSize * 0.8));
 
   dragPiece.x = newX;
   dragPiece.y = newY;
   dragPiece.el.style.left = newX + 'px';
   dragPiece.el.style.top = newY + 'px';
-  dragPiece.el.style.transform = 'scale(1.06)';
 }
 
 function onDragEnd(e) {
@@ -636,23 +672,24 @@ function onDragEnd(e) {
 
   dragPiece.el.style.cursor = 'grab';
   dragPiece.el.style.zIndex = '1';
-  dragPiece.el.style.transition = 'all .35s cubic-bezier(.34,1.56,.64,1)';
+  dragPiece.el.style.borderRadius = '6px';
+  // 只对位置和旋转做弹性过渡，box-shadow 单独处理
+  dragPiece.el.style.transition = 'left .38s cubic-bezier(.34,1.56,.64,1), top .38s cubic-bezier(.34,1.56,.64,1), transform .38s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease, border-radius .2s ease';
 
-  // 检查吸附（Phase 3完善）
   trySnap(dragPiece);
-
   moveCount++;
   dragPiece = null;
 }
 
-// ===== 吸附检测（Phase 2基础版） =====
+// ===== 吸附检测 =====
 function trySnap(piece) {
   const area = document.getElementById('puzzleArea');
   const areaW = area.clientWidth;
+  const areaH = area.clientHeight;
   const grid = puzzleCfg.grid;
-  const pieceSize = Math.floor(Math.min(areaW, area.clientHeight) / grid);
+  const pieceSize = Math.floor(Math.min(areaW, areaH) / grid);
   const offsetX = (areaW - pieceSize * grid) / 2;
-  const offsetY = (area.clientHeight - pieceSize * grid) / 2;
+  const offsetY = (areaH - pieceSize * grid) / 2;
 
   const snapR = puzzleCfg.snapRange;
   const correctX = offsetX + piece.correctCol * pieceSize;
@@ -661,40 +698,48 @@ function trySnap(piece) {
   const dist = Math.hypot(piece.x - correctX, piece.y - correctY);
 
   if (dist < snapR) {
-    // 检查目标位置是否有其他已放置拼块
     const occupied = pieces.some(p =>
       p.id !== piece.id && p.placed &&
       p.correctRow === piece.correctRow && p.correctCol === piece.correctCol
     );
     if (occupied) {
-      // 弹回
+      // 目标被占，弹回拖动前位置
+      piece.el.style.transition = 'left .35s cubic-bezier(.34,1.56,.64,1), top .35s cubic-bezier(.34,1.56,.64,1)';
       piece.el.style.left = dragStartX + 'px';
       piece.el.style.top = dragStartY + 'px';
+      piece.el.style.transform = `rotate(${piece.rotation}deg)`;
+      piece.el.style.boxShadow = '0 2px 8px rgba(0,0,0,.3)';
       piece.x = dragStartX;
       piece.y = dragStartY;
       return;
     }
 
-    // 吸附
+    // 吸附到正确位置
     piece.x = correctX;
     piece.y = correctY;
     piece.placed = true;
     piece.el.style.left = correctX + 'px';
     piece.el.style.top = correctY + 'px';
-    piece.el.style.transform = 'rotate(0deg)';
-    piece.el.style.boxShadow = '0 1px 4px rgba(255,255,255,.15)';
+    piece.el.style.transform = 'rotate(0deg) scale(1)';
+    piece.el.style.boxShadow = '0 0 0 2px rgba(34,197,94,.4), 0 2px 8px rgba(0,0,0,.2)';
+    piece.el.style.borderRadius = '6px';
     piece.el.style.cursor = 'default';
-    piece.el.style.pointerEvents = 'none';
+    piece.el.style.pointerEvents = 'auto';
+    piece.el.style.zIndex = '1';
     updateProgress();
     checkComplete();
   } else {
-    piece.el.style.transform = `rotate(${piece.rotation}deg)`;
+    // 不吸附，保留在放下的位置，恢复自然旋转
+    piece.el.style.transform = `rotate(${piece.rotation}deg) scale(1)`;
     piece.el.style.boxShadow = '0 2px 8px rgba(0,0,0,.3)';
   }
 
+  // 动画结束后恢复默认过渡
   setTimeout(() => {
-    piece.el.style.transition = 'box-shadow .15s ease, transform .15s ease';
-  }, 400);
+    if (piece.el) {
+      piece.el.style.transition = 'left .18s ease, top .18s ease, transform .18s ease, box-shadow .18s ease, border-radius .18s ease';
+    }
+  }, 420);
 }
 
 function updateProgress() {
@@ -707,11 +752,12 @@ function updateProgress() {
 
 // ===== 完成动画序列 =====
 function checkComplete() {
-  if (!puzzleCfg) return;
+  if (!puzzleCfg || puzzleCompleted) return;
   const total = puzzleCfg.grid * puzzleCfg.grid;
   const placed = pieces.filter(p => p.placed).length;
   if (placed !== total) return;
 
+  puzzleCompleted = true;
   stopTimer();
 
   // 0ms: 所有拼块锁定
@@ -777,7 +823,7 @@ function checkComplete() {
 // ===== 散花粒子 =====
 function spawnConfetti() {
   const canvas = document.getElementById('confettiCanvas');
-  canvas.classList.remove('hidden');
+  canvas.classList.remove('u-hidden');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   const ctx = canvas.getContext('2d');
@@ -819,7 +865,7 @@ function spawnConfetti() {
       ctx.restore();
     }
     if (alive) requestAnimationFrame(animate);
-    else { canvas.classList.add('hidden'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    else { canvas.classList.add('u-hidden'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
   }
   requestAnimationFrame(animate);
 }
@@ -842,7 +888,7 @@ function showCompleteModal() {
   });
   document.getElementById('statTime').textContent = formatTime(timerSeconds);
   document.getElementById('statMoves').textContent = moveCount;
-  document.getElementById('completeOverlay2').classList.remove('hidden');
+  document.getElementById('completeOverlay2').classList.remove('u-hidden');
 }
 
 function calcStarsLocal() {
@@ -862,7 +908,7 @@ function formatTime(s) {
 document.getElementById('btnRef').addEventListener('click', () => {
   if (!currentLevel) return;
   document.getElementById('refImage').src = currentLevel.image;
-  document.getElementById('refPanel').classList.remove('hidden');
+  document.getElementById('refPanel').classList.remove('u-hidden');
 });
 
 // ===== 重新开始 =====
@@ -872,7 +918,7 @@ document.getElementById('btnRestart').addEventListener('click', () => {
 });
 
 function restartPuzzle() {
-  document.getElementById('completeOverlay2').classList.add('hidden');
+  document.getElementById('completeOverlay2').classList.add('u-hidden');
   // 重置完成动画状态
   const area = document.getElementById('puzzleArea');
   area.style.transform = '';
@@ -880,20 +926,30 @@ function restartPuzzle() {
   area.style.transition = '';
   document.getElementById('frameGlow').classList.remove('active');
   document.getElementById('completeOverlay').classList.remove('active');
-  document.getElementById('confettiCanvas').classList.add('hidden');
+  document.getElementById('confettiCanvas').classList.add('u-hidden');
   if (currentLevel) initPuzzle(currentLevel, currentDiff);
 }
 
 function closeCompleteModal() {
-  document.getElementById('completeOverlay2').classList.add('hidden');
+  document.getElementById('completeOverlay2').classList.add('u-hidden');
   const area = document.getElementById('puzzleArea');
   area.style.transform = '';
   area.style.boxShadow = '';
   document.getElementById('frameGlow').classList.remove('active');
   document.getElementById('completeOverlay').classList.remove('active');
-  document.getElementById('confettiCanvas').classList.add('hidden');
+  document.getElementById('confettiCanvas').classList.add('u-hidden');
   showLevelSelect();
 }
+
+// ===== 页面可见性：后台暂停计时 =====
+document.addEventListener('visibilitychange', () => {
+  if (!puzzleCfg || puzzleCompleted) return;
+  if (document.hidden) {
+    stopTimer();
+  } else {
+    resumeTimer();
+  }
+});
 
 // ===== 启动 =====
 renderLevelCards();
