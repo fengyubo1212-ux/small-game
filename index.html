@@ -72,6 +72,7 @@ body {
   border-radius: 16px;
   padding: 6px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  touch-action: none;
 }
 
 .cell {
@@ -79,8 +80,14 @@ body {
   border-radius: 10px;
   overflow: hidden;
   position: relative;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.cell.selected {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px #667eea, 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 2;
 }
 
 .cell img {
@@ -239,6 +246,354 @@ function resetLevel() {
   updateUI();
   renderBoard();
 }
+
+// ===== 渲染 =====
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      const img = document.createElement('img');
+      img.src = IMAGES[board[r][c]];
+      img.draggable = false;
+      cell.appendChild(img);
+      cell.addEventListener('touchstart', handleTouchStart, { passive: true });
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+// ===== 触摸交互 =====
+let touchStartRow = -1, touchStartCol = -1;
+let touchStartX = 0, touchStartY = 0;
+let isDragging = false;
+
+function getCellFromTouch(touch) {
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (!el) return null;
+  const cell = el.closest('.cell');
+  if (!cell) return null;
+  return { r: +cell.dataset.row, c: +cell.dataset.col };
+}
+
+function handleTouchStart(e) {
+  if (state.gameStatus !== 'idle') return;
+  const touch = e.touches[0];
+  const cell = getCellFromTouch(touch);
+  if (!cell) return;
+  touchStartRow = cell.r;
+  touchStartCol = cell.c;
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  isDragging = true;
+
+  document.querySelectorAll('.cell').forEach(c => c.classList.remove('selected'));
+  const cellEl = document.querySelector(`.cell[data-row="${cell.r}"][data-col="${cell.c}"]`);
+  if (cellEl) cellEl.classList.add('selected');
+}
+
+function handleTouchMove(e) {
+  e.preventDefault();
+}
+
+function handleTouchEnd(e) {
+  if (!isDragging || state.gameStatus !== 'idle') return;
+  isDragging = false;
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+  const threshold = 20;
+
+  if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+
+  let dr = 0, dc = 0;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    dc = dx > 0 ? 1 : -1;
+  } else {
+    dr = dy > 0 ? 1 : -1;
+  }
+
+  const r1 = touchStartRow, c1 = touchStartCol;
+  const r2 = r1 + dr, c2 = c1 + dc;
+  if (r2 < 0 || r2 >= ROWS || c2 < 0 || c2 >= COLS) return;
+
+  executeSwap(r1, c1, r2, c2);
+}
+
+function swap(r1, c1, r2, c2) {
+  const tmp = board[r1][c1];
+  board[r1][c1] = board[r2][c2];
+  board[r2][c2] = tmp;
+}
+
+// ===== 消除检测 =====
+function findMatches() {
+  const matched = new Set();
+
+  // 横向扫描
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 2; c++) {
+      const type = board[r][c];
+      if (type === -1) continue;
+      let len = 1;
+      while (c + len < COLS && board[r][c + len] === type) len++;
+      if (len >= 3) {
+        for (let i = 0; i < len; i++) matched.add(r * COLS + (c + i));
+        c += len - 1;
+      }
+    }
+  }
+
+  // 纵向扫描
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS - 2; r++) {
+      const type = board[r][c];
+      if (type === -1) continue;
+      let len = 1;
+      while (r + len < ROWS && board[r + len][c] === type) len++;
+      if (len >= 3) {
+        for (let i = 0; i < len; i++) matched.add((r + i) * COLS + c);
+        r += len - 1;
+      }
+    }
+  }
+
+  return [...matched].map(idx => ({ r: Math.floor(idx / COLS), c: idx % COLS }));
+}
+
+function groupMatches(matchedCells) {
+  const groups = [];
+  const visited = new Set();
+
+  for (const { r, c } of matchedCells) {
+    const key = r * COLS + c;
+    if (visited.has(key)) continue;
+
+    const type = board[r][c];
+    const group = [];
+    const queue = [{ r, c }];
+    visited.add(key);
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      group.push(curr);
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const nr = curr.r + dr, nc = curr.c + dc;
+        const nk = nr * COLS + nc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS &&
+            !visited.has(nk) && board[nr][nc] === type &&
+            matchedCells.some(m => m.r === nr && m.c === nc)) {
+          visited.add(nk);
+          queue.push({ r: nr, c: nc });
+        }
+      }
+    }
+    groups.push(group);
+  }
+  return groups;
+}
+
+// ===== 重力 + 填充 =====
+function applyGravity() {
+  for (let c = 0; c < COLS; c++) {
+    const column = [];
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] !== -1) column.push(board[r][c]);
+    }
+    for (let r = ROWS - 1; r >= 0; r--) {
+      const idx = ROWS - 1 - r;
+      board[r][c] = idx < column.length ? column[idx] : -1;
+    }
+  }
+}
+
+function fillBoard() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === -1) {
+        board[r][c] = Math.floor(Math.random() * 3);
+      }
+    }
+  }
+}
+
+// ===== 工具函数 =====
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function showCombo(n) {
+  const container = document.getElementById('comboContainer');
+  const el = document.createElement('div');
+  el.className = 'combo-popup';
+  el.textContent = `COMBO ×${n}!`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 600);
+}
+
+function getScoreForGroup(group) {
+  const size = group.length;
+  if (size >= 6) return 80;
+  if (size === 5) return 40;
+  if (size === 4) return 20;
+  return 10;
+}
+
+function markRemovingCells(matches) {
+  const cells = document.querySelectorAll('.cell');
+  for (const { r, c } of matches) {
+    const idx = r * COLS + c;
+    if (idx < cells.length) cells[idx].classList.add('removing');
+  }
+}
+
+function markNewCells() {
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(c => c.classList.remove('removing'));
+}
+
+async function executeSwap(r1, c1, r2, c2) {
+  state.gameStatus = 'swapping';
+  swap(r1, c1, r2, c2);
+  renderBoard();
+
+  const firstMatches = findMatches();
+  if (firstMatches.length === 0) {
+    await sleep(150);
+    swap(r1, c1, r2, c2);
+    renderBoard();
+    state.stepsLeft--;
+    updateUI();
+    state.gameStatus = 'idle';
+    checkGameState();
+    return;
+  }
+
+  state.stepsLeft--;
+  let combo = 0;
+
+  while (true) {
+    const matches = findMatches();
+    if (matches.length === 0) break;
+
+    combo++;
+    const groups = groupMatches(matches);
+    let turnScore = 0;
+    for (const g of groups) turnScore += getScoreForGroup(g);
+    turnScore *= combo;
+    updateScore(turnScore);
+
+    if (combo > 1) showCombo(combo);
+
+    markRemovingCells(matches);
+    await sleep(200);
+
+    for (const { r, c } of matches) board[r][c] = -1;
+
+    applyGravity();
+    fillBoard();
+    renderBoard();
+    markNewCells();
+    await sleep(300);
+  }
+
+  updateUI();
+  if (state.gameStatus === 'swapping') {
+    state.gameStatus = 'idle';
+  }
+  checkGameState();
+}
+
+// ===== 死局检测 =====
+function checkDeadlock() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (c < COLS - 1) {
+        swap(r, c, r, c + 1);
+        const m = findMatches();
+        swap(r, c, r, c + 1);
+        if (m.length > 0) return false;
+      }
+      if (r < ROWS - 1) {
+        swap(r, c, r + 1, c);
+        const m = findMatches();
+        swap(r, c, r + 1, c);
+        if (m.length > 0) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function showOverlay(icon, title, subtitle, btnText, onClick) {
+  const container = document.getElementById('overlayContainer');
+  container.innerHTML = `
+    <div class="overlay">
+      <div class="modal">
+        <div class="icon">${icon}</div>
+        <div class="title">${title}</div>
+        <div class="subtitle">${subtitle}</div>
+        <button id="modalBtn">${btnText}</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalBtn').addEventListener('click', () => {
+    container.innerHTML = '';
+    onClick();
+  });
+}
+
+function checkGameState() {
+  if (state.score >= state.target) {
+    state.gameStatus = 'win';
+    const nextLevel = state.level + 1;
+    showOverlay('🎉', '恭喜过关！', `第 ${state.level} 关完成`, '下一关', () => {
+      state.level = nextLevel;
+      resetLevel();
+    });
+    return;
+  }
+
+  if (state.stepsLeft <= 0) {
+    state.gameStatus = 'lose';
+    showOverlay('😢', '步数用完', `得分: ${state.score} / ${state.target}`, '重新开始', () => {
+      state.level = 1;
+      resetLevel();
+    });
+    return;
+  }
+
+  if (checkDeadlock()) {
+    state.gameStatus = 'lose';
+    showOverlay('🔒', '死局！', `无可消除的方块，得分: ${state.score}`, '重新开始', () => {
+      state.level = 1;
+      resetLevel();
+    });
+    return;
+  }
+}
+
+function updateUI() {
+  document.getElementById('levelTitle').textContent = `第 ${state.level} 关`;
+  document.getElementById('scoreText').textContent = `分数: ${state.score} / ${state.target}`;
+  document.getElementById('stepsText').textContent = `步数: ${state.stepsLeft}`;
+  const pct = (state.stepsLeft / state.totalSteps) * 100;
+  document.getElementById('stepsFill').style.width = pct + '%';
+}
+
+function updateScore(add) {
+  state.score += add;
+  updateUI();
+}
+
+// ===== 启动 =====
+document.getElementById('board').addEventListener('touchmove', handleTouchMove, { passive: false });
+document.getElementById('board').addEventListener('touchend', handleTouchEnd);
+resetLevel();
 </script>
 </body>
 </html>
