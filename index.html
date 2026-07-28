@@ -3,210 +3,273 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>图片消消乐</title>
+<title>Mini Game Platform</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 
 body {
   font-family: "MiSans","HarmonyOS Sans","PingFang SC",system-ui,sans-serif;
-  background: #1a0a2e;
+  background: #0a0614;
   min-height: 100dvh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: flex; justify-content: center;
   overflow-x: hidden;
   -webkit-user-select:none; user-select:none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ===== 星空调色背景 ===== */
-.bg-stars {
+/* ---- 深空背景 ---- */
+.bg-space {
   position: fixed; inset:0; z-index:0;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, #2d1b69 0%, transparent 60%),
-    radial-gradient(ellipse 60% 70% at 80% 30%, #1a3a5c 0%, transparent 55%),
-    radial-gradient(ellipse 70% 50% at 50% 80%, #3d1259 0%, transparent 55%),
-    radial-gradient(ellipse 100% 100% at 50% 50%, #0d0618 0%, #0a0412 100%);
+    radial-gradient(ellipse 70% 50% at 30% 0%, #1a1050 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 80% 30%, #0d1a3e 0%, transparent 50%),
+    radial-gradient(ellipse 60% 50% at 40% 85%, #2a1050 0%, transparent 55%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, #0a0418 0%, #060310 100%);
 }
 
-.bg-dots {
+.bg-stars {
   position: fixed; inset:0; z-index:0;
-  background-image: radial-gradient(circle, rgba(255,255,255,.15) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-image:
+    radial-gradient(1px 1px at 12% 5%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 25% 15%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.5px 1.5px at 38% 3%, rgba(255,255,255,.8), transparent),
+    radial-gradient(1px 1px at 52% 10%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 68% 8%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 78% 20%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 88% 6%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 18% 32%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 45% 28%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 60% 35%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1px 1px at 75% 30%, rgba(255,255,255,.3), transparent),
+    radial-gradient(1.5px 1.5px at 8% 52%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 35% 48%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 55% 55%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1px 1px at 82% 50%, rgba(255,255,255,.3), transparent),
+    radial-gradient(1.5px 1.5px at 22% 72%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 48% 65%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 70% 70%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1px 1px at 85% 78%, rgba(255,255,255,.3), transparent),
+    radial-gradient(1px 1px at 15% 85%, rgba(255,255,255,.5), transparent);
 }
 
-/* ===== 装饰光斑 ===== */
-.glow {
-  position: fixed; border-radius:50%; pointer-events:none; z-index:0;
-  filter: blur(80px); opacity:.35;
+.glow-orb {
+  position: fixed; border-radius:50%; pointer-events:none; z-index:0; filter:blur(90px);
 }
-.glow-1 { width:220px; height:220px; background:#8b5cf6; top:5%; left:-60px; }
-.glow-2 { width:180px; height:180px; background:#3b82f6; top:55%; right:-50px; }
-.glow-3 { width:200px; height:200px; background:#f472b6; bottom:-40px; left:30%; }
+.glow-orb.purple { width:260px; height:260px; background:#7c3aed; opacity:.2; top:-80px; left:-60px; }
+.glow-orb.blue   { width:200px; height:200px; background:#3b82f6; opacity:.16; top:50%; right:-60px; }
+.glow-orb.pink   { width:220px; height:220px; background:#ec4899; opacity:.14; bottom:-60px; left:25%; }
 
-/* ===== 主菜单容器 ===== */
-.menu {
+/* =============================================================
+   PLATFORM LOBBY
+   ============================================================= */
+.lobby {
   position: relative; z-index:2;
-  width:100%; max-width:400px;
-  padding: 48px 28px 36px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
+  width: 100%; max-width: 420px;
+  padding: 36px 20px 28px;
 }
 
-/* ===== 顶部装饰 ===== */
-.menu-crown {
-  width: 56px; height: 56px;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  border-radius: 18px;
-  display: flex; align-items:center; justify-content:center;
-  font-size: 28px;
-  box-shadow: 0 8px 24px rgba(245,158,11,.35), 0 0 0 4px rgba(251,191,36,.15);
-  margin-bottom: -8px;
+/* ---- 平台头部 ---- */
+.platform-header {
+  text-align: center;
+  margin-bottom: 32px;
 }
 
-/* ===== 标题 ===== */
-.title-block { text-align: center; }
+.platform-badge {
+  display: inline-flex; align-items:center; gap:6px;
+  padding: 6px 16px;
+  border-radius: 50px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  font-size: 11px; font-weight:700; letter-spacing:2px;
+  color: rgba(255,255,255,.45);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
 
-.title-main {
-  font-size: 38px; font-weight:900; letter-spacing: 3px;
-  background: linear-gradient(180deg, #fff 20%, #e0c3fc 60%, #c4b5fd 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 2px 8px rgba(168,85,247,.4));
+.platform-name {
+  font-size: 30px; font-weight:900; letter-spacing: 1px;
+  background: linear-gradient(180deg, #fff 15%, #c4b5fd 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
   line-height: 1.2;
 }
 
-.title-sub {
-  font-size: 13px; color: rgba(255,255,255,.45);
-  letter-spacing: 4px;
-  margin-top: 2px;
+.platform-tagline {
+  font-size: 12px; color: rgba(255,255,255,.3);
+  letter-spacing: 3px; margin-top: 4px;
 }
 
-/* ===== 主按钮 ===== */
-.btn-play {
-  width: 100%;
-  padding: 20px;
-  border: none; border-radius: 20px;
-  font-size: 20px; font-weight:800; letter-spacing: 2px;
-  color: #fff;
-  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
-  box-shadow:
-    0 8px 0 #5b21b6,
-    0 12px 28px rgba(124,58,237,.45);
+/* ---- 分区标题 ---- */
+.section-head {
+  display: flex; align-items:center; gap:10px;
+  margin-bottom: 14px;
+}
+
+.section-head .line {
+  flex:1; height:1px;
+  background: rgba(255,255,255,.08);
+}
+
+.section-head .label {
+  font-size: 11px; font-weight:700; letter-spacing:2px;
+  color: rgba(255,255,255,.3);
+  text-transform: uppercase;
+}
+
+/* ---- 游戏卡片网格 ---- */
+.games-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+/* 游戏卡片 */
+.game-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  overflow: hidden;
   cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
-  position: relative; top: 0;
+  text-decoration: none;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.game-card:active {
+  transform: scale(.95);
+  border-color: rgba(168,85,247,.4);
+  box-shadow: 0 0 24px rgba(139,92,246,.15);
 }
 
-.btn-play:active {
-  transform: translateY(4px);
-  box-shadow: 0 4px 0 #5b21b6, 0 8px 18px rgba(124,58,237,.35);
+.game-card .card-cover {
+  aspect-ratio: 1;
+  overflow: hidden;
+  position: relative;
 }
 
-.btn-play::after {
-  content: '';
-  position: absolute; top:4px; left:12%; right:12%; height:35%;
-  background: linear-gradient(180deg, rgba(255,255,255,.25), transparent);
-  border-radius: 20px; pointer-events:none;
+.game-card .card-cover img {
+  width: 100%; height: 100%;
+  object-fit: cover; display:block;
 }
 
-/* ===== 次级按钮 ===== */
-.btn-secondary {
-  padding: 14px 36px;
-  border: 1.5px solid rgba(255,255,255,.18);
+.game-card .card-cover .card-badge {
+  position: absolute; top:10px; right:10px;
+  padding: 3px 10px;
   border-radius: 50px;
-  font-size: 14px; font-weight:700; letter-spacing: 1px;
-  color: rgba(255,255,255,.7);
-  background: rgba(255,255,255,.06);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  cursor: pointer;
-  transition: all .2s ease;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(8px);
+  font-size: 10px; font-weight:700;
+  color: #fbbf24;
+  letter-spacing: .5px;
 }
 
-.btn-secondary:active {
-  background: rgba(255,255,255,.14);
+.game-card .card-info {
+  padding: 14px 14px 16px;
+}
+
+.game-card .card-name {
+  font-size: 15px; font-weight:800;
   color: #fff;
+  letter-spacing: .3px;
 }
 
-/* ===== 分隔线 ===== */
-.divider {
-  width: 60%; height:1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
+.game-card .card-meta {
+  font-size: 11px; color: rgba(255,255,255,.35);
+  margin-top: 3px;
 }
 
-/* ===== 迷你游戏图标 ===== */
-.mini-games {
-  display: flex; gap: 16px;
+/* 占位卡片 */
+.game-card.placeholder {
+  cursor: default;
 }
-
-.mini-icon {
-  width: 52px; height: 52px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.1);
+.game-card.placeholder:active {
+  transform: none;
+  border-color: rgba(255,255,255,.08);
+  box-shadow: none;
+}
+.game-card.placeholder .card-cover {
+  background: rgba(255,255,255,.03);
   display: flex; align-items:center; justify-content:center;
-  font-size: 24px;
-  transition: transform .2s ease;
+  font-size: 36px;
 }
+.game-card.placeholder .card-name { color: rgba(255,255,255,.25); }
+.game-card.placeholder .card-meta { color: rgba(255,255,255,.12); }
 
-.mini-icon:active { transform: scale(.9); }
-
-.mini-label {
-  font-size: 10px; color: rgba(255,255,255,.3);
-  text-align: center; margin-top: 6px;
+/* ---- 底部 ---- */
+.lobby-footer {
+  text-align: center;
+  padding-top: 4px;
 }
-
-/* ===== 底部 ===== */
-.footer-text {
-  font-size: 11px; color: rgba(255,255,255,.2);
+.lobby-footer .ver {
+  font-size: 10px; color: rgba(255,255,255,.15);
   letter-spacing: 2px;
 }
 </style>
 </head>
 <body>
 
+<div class="bg-space"></div>
 <div class="bg-stars"></div>
-<div class="bg-dots"></div>
-<div class="glow glow-1"></div>
-<div class="glow glow-2"></div>
-<div class="glow glow-3"></div>
+<div class="glow-orb purple"></div>
+<div class="glow-orb blue"></div>
+<div class="glow-orb pink"></div>
 
-<div class="menu">
-  <div class="menu-crown">🧩</div>
+<div class="lobby">
 
-  <div class="title-block">
-    <div class="title-main">图片消消乐</div>
-    <div class="title-sub">MATCH 3 PUZZLE</div>
+  <!-- 平台头部 -->
+  <div class="platform-header">
+    <div class="platform-badge">PLATFORM</div>
+    <div class="platform-name">Mini Game Platform</div>
+    <div class="platform-tagline">LIGHTWEIGHT · FUN · COLLECTION</div>
   </div>
 
-  <a href="match3.html" style="width:100%;text-decoration:none;">
-    <button class="btn-play">开始游戏</button>
-  </a>
+  <!-- 游戏列表 -->
+  <div class="section-head">
+    <div class="line"></div>
+    <div class="label">GAMES</div>
+    <div class="line"></div>
+  </div>
 
-  <div class="divider"></div>
+  <div class="games-row">
+    <a class="game-card" href="match3.html">
+      <div class="card-cover">
+        <img src="test1.jpg" alt="Match 3" draggable="false">
+        <div class="card-badge">HOT</div>
+      </div>
+      <div class="card-info">
+        <div class="card-name">图片消消乐</div>
+        <div class="card-meta">Match 3 Puzzle</div>
+      </div>
+    </a>
 
-  <div style="text-align:center">
-    <div style="font-size:12px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-bottom:12px;">更多游戏</div>
-    <div class="mini-games">
-      <div style="text-align:center">
-        <div class="mini-icon">🐍</div>
-        <div class="mini-label">贪吃蛇</div>
+    <div class="game-card placeholder">
+      <div class="card-cover">🐍</div>
+      <div class="card-info">
+        <div class="card-name">贪吃蛇</div>
+        <div class="card-meta">Coming Soon</div>
       </div>
-      <div style="text-align:center">
-        <div class="mini-icon">🔢</div>
-        <div class="mini-label">2048</div>
+    </div>
+
+    <div class="game-card placeholder">
+      <div class="card-cover">🔢</div>
+      <div class="card-info">
+        <div class="card-name">2048</div>
+        <div class="card-meta">Coming Soon</div>
       </div>
-      <div style="text-align:center">
-        <div class="mini-icon">🧩</div>
-        <div class="mini-label">拼图</div>
+    </div>
+
+    <div class="game-card placeholder">
+      <div class="card-cover">🧩</div>
+      <div class="card-info">
+        <div class="card-name">拼图大师</div>
+        <div class="card-meta">Coming Soon</div>
       </div>
     </div>
   </div>
 
-  <div class="footer-text">v1.0</div>
+  <div class="lobby-footer">
+    <div class="ver">MINI GAME PLATFORM · v1.0</div>
+  </div>
 </div>
 
 </body>
