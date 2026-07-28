@@ -705,22 +705,128 @@ function updateProgress() {
   document.getElementById('progressFill').style.width = (placed / total * 100) + '%';
 }
 
-// ===== 完成检测（Phase 2基础版，Phase 4完善动画） =====
+// ===== 完成动画序列 =====
 function checkComplete() {
   if (!puzzleCfg) return;
   const total = puzzleCfg.grid * puzzleCfg.grid;
   const placed = pieces.filter(p => p.placed).length;
-  if (placed === total) {
-    stopTimer();
-    // Phase 4 将在此添加完整完成动画
-    setTimeout(() => showCompleteModal(), 400);
+  if (placed !== total) return;
+
+  stopTimer();
+
+  // 0ms: 所有拼块锁定
+  pieces.forEach(p => { p.placed = true; p.el.style.pointerEvents = 'none'; });
+
+  // 400ms: 图片发光
+  setTimeout(() => {
+    pieces.forEach(p => {
+      p.el.style.boxShadow = '0 0 16px rgba(251,191,36,.5), 0 0 0 1px rgba(251,191,36,.3)';
+      p.el.style.transition = 'all .6s ease';
+    });
+  }, 400);
+
+  // 700ms: 拼块缝隙消失
+  setTimeout(() => {
+    const area = document.getElementById('puzzleArea');
+    const areaW = area.clientWidth;
+    const grid = puzzleCfg.grid;
+    const pieceSize = Math.floor(Math.min(areaW, area.clientHeight) / grid);
+    const offsetX = (areaW - pieceSize * grid) / 2;
+    const offsetY = (area.clientHeight - pieceSize * grid) / 2;
+
+    pieces.forEach(p => {
+      const cx = offsetX + p.correctCol * pieceSize;
+      const cy = offsetY + p.correctRow * pieceSize;
+      p.el.style.left = cx + 'px';
+      p.el.style.top = cy + 'px';
+      p.el.style.borderRadius = '0px';
+      p.el.style.boxShadow = 'none';
+      p.el.style.transition = 'all .5s cubic-bezier(.16,1,.3,1)';
+    });
+  }, 700);
+
+  // 900ms: 相框出现
+  setTimeout(() => {
+    document.getElementById('frameGlow').classList.add('active');
+    const area = document.getElementById('puzzleArea');
+    area.style.transform = 'scale(1.03)';
+    area.style.transition = 'transform .5s cubic-bezier(.16,1,.3,1)';
+  }, 900);
+
+  // 1100ms: 背景变暗
+  setTimeout(() => {
+    document.getElementById('completeOverlay').classList.add('active');
+    const area = document.getElementById('puzzleArea');
+    area.style.transform = 'scale(1.05)';
+    area.style.boxShadow = '0 16px 48px rgba(0,0,0,.4)';
+  }, 1100);
+
+  // 1300ms: 礼花
+  setTimeout(() => {
+    spawnConfetti();
+  }, 1300);
+
+  // 2100ms: 结算弹窗（先让玩家欣赏完成图 ~800ms）
+  setTimeout(() => {
+    const area = document.getElementById('puzzleArea');
+    area.style.transform = 'scale(1.0)';
+    showCompleteModal();
+  }, 2100);
+}
+
+// ===== 散花粒子 =====
+function spawnConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  canvas.classList.remove('hidden');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  const colors = ['#fbbf24','#f59e0b','#a78bfa','#7c3aed','#ec4899','#3b82f6','#22c55e','#fff'];
+  const particles = [];
+
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * canvas.height * 0.3,
+      vx: (Math.random() - .5) * 3,
+      vy: 2 + Math.random() * 4,
+      size: 4 + Math.random() * 7,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - .5) * 10,
+      life: 1, decay: .3 + Math.random() * .5,
+    });
   }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += .05;
+      p.rotation += p.rotSpeed;
+      p.life -= p.decay * .016;
+      if (p.life <= 0) continue;
+      alive = true;
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation * Math.PI / 180);
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * .6);
+      ctx.restore();
+    }
+    if (alive) requestAnimationFrame(animate);
+    else { canvas.classList.add('hidden'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  }
+  requestAnimationFrame(animate);
 }
 
 function showCompleteModal() {
   const stars = calcStarsLocal();
 
-  // 存档
   if (currentLevel && currentDiff) {
     const key = `puzzle_best_${currentLevel.id}_${currentDiff}`;
     const prev = JSON.parse(localStorage.getItem(key) || '{}');
@@ -767,11 +873,25 @@ document.getElementById('btnRestart').addEventListener('click', () => {
 
 function restartPuzzle() {
   document.getElementById('completeOverlay2').classList.add('hidden');
+  // 重置完成动画状态
+  const area = document.getElementById('puzzleArea');
+  area.style.transform = '';
+  area.style.boxShadow = '';
+  area.style.transition = '';
+  document.getElementById('frameGlow').classList.remove('active');
+  document.getElementById('completeOverlay').classList.remove('active');
+  document.getElementById('confettiCanvas').classList.add('hidden');
   if (currentLevel) initPuzzle(currentLevel, currentDiff);
 }
 
 function closeCompleteModal() {
   document.getElementById('completeOverlay2').classList.add('hidden');
+  const area = document.getElementById('puzzleArea');
+  area.style.transform = '';
+  area.style.boxShadow = '';
+  document.getElementById('frameGlow').classList.remove('active');
+  document.getElementById('completeOverlay').classList.remove('active');
+  document.getElementById('confettiCanvas').classList.add('hidden');
   showLevelSelect();
 }
 
