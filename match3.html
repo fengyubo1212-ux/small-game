@@ -334,14 +334,33 @@ body {
 <div id="comboContainer"></div>
 
 <script>
-// ===== 图片预加载 =====
-const IMAGES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
-const preloaded = [];
-IMAGES.forEach(src => {
-  const img = new Image();
-  img.src = src;
-  preloaded.push(img);
-});
+// ===== 图片缩略图生成 =====
+const IMAGE_FILES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
+const THUMB_SIZE = 150;
+let IMAGES = [];
+
+function createThumbnail(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = THUMB_SIZE;
+      canvas.height = THUMB_SIZE;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, THUMB_SIZE, THUMB_SIZE);
+      canvas.toBlob(blob => {
+        resolve(URL.createObjectURL(blob));
+      }, 'image/jpeg', 0.6);
+    };
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+}
+
+async function initImages() {
+  const results = await Promise.all(IMAGE_FILES.map(createThumbnail));
+  IMAGES = results;
+}
 
 // ===== 进度存储 =====
 function getMaxLevel() {
@@ -870,7 +889,12 @@ function updateScore(add) {
 // ===== 启动 =====
 document.getElementById('board').addEventListener('touchmove', handleTouchMove, { passive: false });
 document.getElementById('board').addEventListener('touchend', handleTouchEnd);
-renderMap();
+
+(async function boot() {
+  document.getElementById('mapPath').innerHTML = '<div style="text-align:center;color:#999;padding:40px">加载中...</div>';
+  await initImages();
+  renderMap();
+})();
 </script>
 </body>
 </html>
