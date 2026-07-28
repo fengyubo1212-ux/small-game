@@ -334,6 +334,15 @@ body {
 <div id="comboContainer"></div>
 
 <script>
+// ===== 图片预加载 =====
+const IMAGES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
+const preloaded = [];
+IMAGES.forEach(src => {
+  const img = new Image();
+  img.src = src;
+  preloaded.push(img);
+});
+
 // ===== 进度存储 =====
 function getMaxLevel() {
   return parseInt(localStorage.getItem('match3_max_level') || '1');
@@ -405,7 +414,6 @@ function startLevel(n) {
 
 // ===== 游戏状态 =====
 const ROWS = 6, COLS = 6;
-const IMAGES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
 
 let board = [];
 let state = {
@@ -481,6 +489,13 @@ function renderBoard() {
   }
 }
 
+function updateCellImage(r, c) {
+  const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+  if (cell) {
+    cell.querySelector('img').src = IMAGES[board[r][c]];
+  }
+}
+
 // ===== 触摸交互 =====
 let touchStartRow = -1, touchStartCol = -1;
 let touchStartX = 0, touchStartY = 0;
@@ -542,6 +557,43 @@ function swap(r1, c1, r2, c2) {
   const tmp = board[r1][c1];
   board[r1][c1] = board[r2][c2];
   board[r2][c2] = tmp;
+}
+
+function getCellEl(r, c) {
+  return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+}
+
+function addSwapAnimation(r1, c1, r2, c2) {
+  const cell1 = getCellEl(r1, c1);
+  const cell2 = getCellEl(r2, c2);
+  if (!cell1 || !cell2) return;
+
+  const rect1 = cell1.getBoundingClientRect();
+  const rect2 = cell2.getBoundingClientRect();
+  const dx = rect2.left - rect1.left;
+  const dy = rect2.top - rect1.top;
+
+  cell1.style.transition = 'transform 0.18s ease';
+  cell2.style.transition = 'transform 0.18s ease';
+  cell1.style.transform = `translate(${dx}px, ${dy}px)`;
+  cell2.style.transform = `translate(${-dx}px, ${-dy}px)`;
+  cell1.style.zIndex = '3';
+  cell2.style.zIndex = '3';
+}
+
+function removeSwapAnimation(r1, c1, r2, c2) {
+  const cell1 = getCellEl(r1, c1);
+  const cell2 = getCellEl(r2, c2);
+  if (!cell1 || !cell2) return;
+
+  cell1.style.transition = 'none';
+  cell2.style.transition = 'none';
+  cell1.style.transform = '';
+  cell2.style.transform = '';
+  cell1.style.zIndex = '';
+  cell2.style.zIndex = '';
+  cell1.classList.remove('selected');
+  cell2.classList.remove('selected');
 }
 
 // ===== 消除检测 =====
@@ -671,13 +723,24 @@ function markNewCells() {
 async function executeSwap(r1, c1, r2, c2) {
   state.gameStatus = 'swapping';
   swap(r1, c1, r2, c2);
-  renderBoard();
+
+  addSwapAnimation(r1, c1, r2, c2);
+  await sleep(180);
+  updateCellImage(r1, c1);
+  updateCellImage(r2, c2);
+  removeSwapAnimation(r1, c1, r2, c2);
 
   const firstMatches = findMatches();
   if (firstMatches.length === 0) {
     await sleep(150);
     swap(r1, c1, r2, c2);
-    renderBoard();
+
+    addSwapAnimation(r1, c1, r2, c2);
+    await sleep(180);
+    updateCellImage(r1, c1);
+    updateCellImage(r2, c2);
+    removeSwapAnimation(r1, c1, r2, c2);
+
     state.stepsLeft--;
     updateUI();
     state.gameStatus = 'idle';
