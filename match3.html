@@ -360,6 +360,88 @@ body {
   transform: scale(0.95);
   box-shadow: 0 2px 8px rgba(102,126,234,.2);
 }
+
+/* ===== 棋盘 + 粒子画布 ===== */
+.board-wrapper {
+  position: relative;
+}
+
+.board-wrapper .board {
+  position: relative;
+  z-index: 1;
+}
+
+#particleCanvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ===== 掉落弹跳动画 ===== */
+@keyframes dropBounce {
+  0%   { transform: translateY(-80px); opacity: 0; }
+  50%  { transform: translateY(4px); opacity: 1; }
+  70%  { transform: translateY(-6px); }
+  85%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+
+.cell.drop-in {
+  animation: dropBounce 0.45s ease-out forwards;
+}
+
+/* ===== 得分上浮 ===== */
+.score-float {
+  position: fixed;
+  pointer-events: none;
+  z-index: 20;
+  font-size: 18px;
+  font-weight: 800;
+  color: #FF6B6B;
+  text-shadow: 0 1px 4px rgba(0,0,0,.1);
+  animation: scoreRise 0.9s ease-out forwards;
+}
+
+@keyframes scoreRise {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(1.2); }
+}
+
+/* ===== 失败抖动 ===== */
+.board.shake {
+  animation: shake 0.5s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+/* ===== 棋盘变灰 ===== */
+.board.grayout {
+  filter: grayscale(1) brightness(0.7);
+  transition: filter 0.4s ease;
+}
+
+/* ===== 胜利粒子 ===== */
+.win-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 150;
+  border-radius: 3px;
+  animation: confettiFall 1.2s ease-out forwards;
+}
+
+@keyframes confettiFall {
+  0%   { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.3); }
+}
 </style>
 </head>
 <body>
@@ -399,21 +481,39 @@ body {
       <div class="steps-fill" id="stepsFill" style="width:100%"></div>
     </div>
   </div>
-  <div class="board" id="board"></div>
+  <div class="board-wrapper">
+    <div class="board" id="board"></div>
+    <canvas id="particleCanvas"></canvas>
+  </div>
 </div>
 <div id="overlayContainer"></div>
 <div id="comboContainer"></div>
+<div id="scoreFloatContainer"></div>
 
 <script>
-// ===== 图片缩略图生成 =====
+// ===== 图片缩略图生成 + 取色 =====
 const IMAGE_FILES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
 const THUMB_SIZE = 150;
 let IMAGES = [];
+let CELL_COLORS = ['#FF9A76', '#5B8DEF', '#43E97B'];
 
-function createThumbnail(src) {
+function getAverageColor(img) {
+  const c = document.createElement('canvas');
+  c.width = 8; c.height = 8;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, 8, 8);
+  const d = ctx.getImageData(0, 0, 8, 8).data;
+  let r = 0, g = 0, b = 0;
+  for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; }
+  const n = d.length / 4;
+  return `rgb(${Math.round(r/n)},${Math.round(g/n)},${Math.round(b/n)})`;
+}
+
+function createThumbnail(src, idx) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
+      CELL_COLORS[idx] = getAverageColor(img);
       const canvas = document.createElement('canvas');
       canvas.width = THUMB_SIZE;
       canvas.height = THUMB_SIZE;
@@ -429,7 +529,7 @@ function createThumbnail(src) {
 }
 
 async function initImages() {
-  const results = await Promise.all(IMAGE_FILES.map(createThumbnail));
+  const results = await Promise.all(IMAGE_FILES.map((f, i) => createThumbnail(f, i)));
   IMAGES = results;
 }
 
@@ -673,8 +773,8 @@ function addSwapAnimation(r1, c1, r2, c2) {
   const dx = rect2.left - rect1.left;
   const dy = rect2.top - rect1.top;
 
-  cell1.style.transition = 'transform 0.18s ease';
-  cell2.style.transition = 'transform 0.18s ease';
+  cell1.style.transition = 'transform 0.18s ease-in-out';
+  cell2.style.transition = 'transform 0.18s ease-in-out';
   cell1.style.transform = `translate(${dx}px, ${dy}px)`;
   cell2.style.transform = `translate(${-dx}px, ${-dy}px)`;
   cell1.style.zIndex = '3';
@@ -857,7 +957,11 @@ async function executeSwap(r1, c1, r2, c2) {
     turnScore *= combo;
     updateScore(turnScore);
 
-    if (combo > 1) showCombo(combo);
+    showComboTier(combo);
+    for (const g of groups) {
+      const mid = g[Math.floor(g.length / 2)];
+      showScoreFloat(mid.r, mid.c, getScoreForGroup(g) * combo);
+    }
 
     markRemovingCells(matches);
     await sleep(200);
@@ -957,7 +1061,173 @@ function updateScore(add) {
   updateUI();
 }
 
-// ===== 启动 =====
+// ===== 粒子系统 =====
+function spawnParticles(cx, cy, color, count) {
+  const canvas = document.getElementById('particleCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = rect.width * (devicePixelRatio || 1);
+  canvas.height = rect.height * (devicePixelRatio || 1);
+  ctx.scale(devicePixelRatio || 1, 1);
+
+  const particles = [];
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 60 + Math.random() * 140;
+    particles.push({
+      x: cx * rect.width,
+      y: cy * rect.height,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 30,
+      life: 1,
+      decay: 1.2 + Math.random() * 1.8,
+      size: 3 + Math.random() * 4,
+      color: color,
+    });
+  }
+
+  let animId;
+  function animate(ts) {
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    let alive = false;
+    for (const p of particles) {
+      p.x += p.vx * 0.016;
+      p.y += p.vy * 0.016;
+      p.vy += 120 * 0.016;
+      p.life -= p.decay * 0.016;
+      if (p.life <= 0) continue;
+      alive = true;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (alive) animId = requestAnimationFrame(animate);
+  }
+  animId = requestAnimationFrame(animate);
+}
+
+function spawnMatchParticles(matches) {
+  const boardEl = document.getElementById('board');
+  const boardRect = boardEl.getBoundingClientRect();
+  const canvas = document.getElementById('particleCanvas');
+  const canvasRect = canvas.getBoundingClientRect();
+
+  for (const { r, c } of matches) {
+    const type = boardEl.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (!type) continue;
+    const color = CELL_COLORS[board[r][c]] || '#FF6B6B';
+    const cellSize = boardRect.width / COLS;
+    const cx = (c * cellSize + cellSize / 2 - canvasRect.left) / canvasRect.width;
+    const cy = (r * cellSize + cellSize / 2 - canvasRect.top) / canvasRect.height;
+    spawnParticles(cx, cy, color, 8);
+  }
+}
+
+// ===== 得分上浮 =====
+function showScoreFloat(r, c, points) {
+  const boardEl = document.getElementById('board');
+  const cells = boardEl.querySelectorAll('.cell');
+  const idx = r * COLS + c;
+  if (idx >= cells.length) return;
+  const cell = cells[idx];
+  const rect = cell.getBoundingClientRect();
+
+  const el = document.createElement('div');
+  el.className = 'score-float';
+  el.textContent = '+' + points;
+  el.style.left = rect.left + rect.width / 2 - 20 + 'px';
+  el.style.top = rect.top + 'px';
+  document.getElementById('scoreFloatContainer').appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+
+// ===== Combo 分级 =====
+const COMBO_TIERS = [
+  { min: 2, text: 'Nice!', color: '#FF9A76' },
+  { min: 3, text: 'Great!', color: '#FF6B6B' },
+  { min: 4, text: 'Excellent!', color: '#FF4757' },
+  { min: 5, text: 'Amazing!', color: '#9B7BFF' },
+  { min: 6, text: 'Perfect!', color: '#FF6B6B' },
+  { min: 8, text: 'Unbelievable!', color: '#FF4757' },
+];
+
+function showComboTier(combo) {
+  let tier = null;
+  for (const t of COMBO_TIERS) {
+    if (combo >= t.min) tier = t;
+  }
+  if (!tier) return;
+
+  const container = document.getElementById('comboContainer');
+  const el = document.createElement('div');
+  el.className = 'combo-popup';
+  el.textContent = tier.text;
+  el.style.color = tier.color;
+  el.style.textShadow = `0 2px 16px ${tier.color}40`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+// ===== 胜利粒子雨 =====
+function spawnWinConfetti() {
+  const colors = ['#FF6B6B', '#FF9A76', '#FFD93D', '#6BCB77', '#4D96FF', '#9B7BFF'];
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'win-particle';
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = -(10 + Math.random() * 30) + 'px';
+      el.style.width = (6 + Math.random() * 8) + 'px';
+      el.style.height = (6 + Math.random() * 10) + 'px';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.animationDuration = (1 + Math.random() * 1.5) + 's';
+      el.style.animationDelay = '0s';
+      el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1500);
+    }, i * 20);
+  }
+}
+
+// ===== 失败特效 =====
+function triggerLoseEffect() {
+  const boardEl = document.getElementById('board');
+  boardEl.classList.add('shake', 'grayout');
+  setTimeout(() => {
+    boardEl.classList.remove('shake', 'grayout');
+  }, 600);
+}
+
+// ===== 增强 markRemovingCells 加粒子 =====
+const _markRemovingCells = markRemovingCells;
+markRemovingCells = function(matches) {
+  _markRemovingCells(matches);
+  spawnMatchParticles(matches);
+};
+
+// ===== 增强 updateAllCells 加掉落弹跳 =====
+const _updateAllCells = updateAllCells;
+updateAllCells = function() {
+  _updateAllCells();
+  const cells = document.querySelectorAll('.board .cell');
+  cells.forEach(c => {
+    c.classList.add('drop-in');
+    c.addEventListener('animationend', () => c.classList.remove('drop-in'), { once: true });
+  });
+};
+
+// ===== 增强 showOverlay 加输赢特效 =====
+const _showOverlay = showOverlay;
+showOverlay = function(icon, title, subtitle, btnText, onClick) {
+  if (title === '恭喜过关！') spawnWinConfetti();
+  if (title === '步数用完' || title === '死局！') triggerLoseEffect();
+  _showOverlay(icon, title, subtitle, btnText, onClick);
+};
+
 document.getElementById('board').addEventListener('touchmove', handleTouchMove, { passive: false });
 document.getElementById('board').addEventListener('touchend', handleTouchEnd);
 
