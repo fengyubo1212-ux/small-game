@@ -469,22 +469,287 @@ function updateTimerDisplay() {
     String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 
-// ===== 拼图初始化（Phase 1仅布局，Phase 2加逻辑） =====
+// ===== 拼图系统 =====
+let pieces = [];
+let puzzleCfg = null;
+let moveCount = 0;
+let dragPiece = null;
+let dragStartX = 0, dragStartY = 0;
+let dragOffX = 0, dragOffY = 0;
+
 function initPuzzle(level, diff) {
-  const cfg = DIFFICULTIES[diff];
+  puzzleCfg = DIFFICULTIES[diff];
+  const grid = puzzleCfg.grid;
+  const area = document.getElementById('puzzleArea');
+  const areaW = area.clientWidth;
+  const areaH = area.clientHeight;
+  const pieceSize = Math.floor(Math.min(areaW, areaH) / grid);
+
   document.getElementById('hudLevel').textContent = level.name;
-  document.getElementById('hudProgress').textContent = `0/${cfg.pieces}`;
+  document.getElementById('hudProgress').textContent = `0/${grid * grid}`;
   document.getElementById('progressFill').style.width = '0%';
   document.getElementById('bgRef').style.backgroundImage = `url(${level.image})`;
+  document.getElementById('bgRef').style.backgroundSize = 'cover';
   document.getElementById('frameGlow').classList.remove('active');
   document.getElementById('completeOverlay').classList.remove('active');
-  document.getElementById('piecesLayer').innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,.2);font-size:13px">
-      拼图区域<br>${cfg.label} · 准备开始
-    </div>
-  `;
 
+  // 创建拼块
+  pieces = [];
+  moveCount = 0;
+  const layer = document.getElementById('piecesLayer');
+  layer.innerHTML = '';
+  layer.style.position = 'relative';
+  layer.style.width = '100%';
+  layer.style.height = '100%';
+
+  // 生成随机位置（不重叠）
+  const positions = generateScatteredPositions(grid * grid, areaW, areaH, pieceSize);
+
+  for (let i = 0; i < grid * grid; i++) {
+    const correctRow = Math.floor(i / grid);
+    const correctCol = i % grid;
+    const pos = positions[i];
+
+    const el = document.createElement('div');
+    el.className = 'puzzle-piece';
+    el.dataset.id = i;
+    el.dataset.correctRow = correctRow;
+    el.dataset.correctCol = correctCol;
+    el.style.position = 'absolute';
+    el.style.width = pieceSize + 'px';
+    el.style.height = pieceSize + 'px';
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.style.backgroundImage = `url(${level.image})`;
+    el.style.backgroundSize = (areaW) + 'px ' + (areaH) + 'px';
+    el.style.backgroundPosition = `-${correctCol * pieceSize}px -${correctRow * pieceSize}px`;
+    el.style.borderRadius = '6px';
+    el.style.boxShadow = '0 2px 8px rgba(0,0,0,.3)';
+    el.style.cursor = 'grab';
+    el.style.zIndex = '1';
+    el.style.transition = 'box-shadow .15s ease, transform .15s ease';
+    el.style.transform = `rotate(${pos.rot}deg)`;
+    el.style.touchAction = 'none';
+
+    // 鼠标事件
+    el.addEventListener('mousedown', (e) => onDragStart(e, i));
+    // 触摸事件
+    el.addEventListener('touchstart', (e) => onDragStart(e, i), { passive: false });
+
+    layer.appendChild(el);
+
+    pieces.push({
+      id: i,
+      correctRow,
+      correctCol,
+      el,
+      x: pos.x,
+      y: pos.y,
+      rotation: pos.rot,
+      placed: false,
+    });
+  }
+
+  updateProgress();
   startTimer();
+}
+
+function generateScatteredPositions(count, areaW, areaH, pieceSize) {
+  const positions = [];
+  const margin = 4;
+  const maxAttempts = 200;
+
+  for (let i = 0; i < count; i++) {
+    let x, y, attempts = 0;
+    do {
+      x = margin + Math.random() * (areaW - pieceSize - margin * 2);
+      y = margin + Math.random() * (areaH - pieceSize - margin * 2);
+      attempts++;
+    } while (attempts < maxAttempts && positions.some(p =>
+      Math.abs(p.x - x) < pieceSize * 0.85 && Math.abs(p.y - y) < pieceSize * 0.85
+    ));
+
+    const rot = (Math.random() - 0.5) * 10;
+    positions.push({ x, y, rot });
+  }
+  return positions;
+}
+
+// ===== 拖拽系统 =====
+function onDragStart(e, pieceId) {
+  if (pieces[pieceId].placed) return;
+  e.preventDefault();
+
+  dragPiece = pieces[pieceId];
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+  const rect = dragPiece.el.getBoundingClientRect();
+  dragOffX = clientX - rect.left;
+  dragOffY = clientY - rect.top;
+  dragStartX = dragPiece.x;
+  dragStartY = dragPiece.y;
+
+  dragPiece.el.style.zIndex = '10';
+  dragPiece.el.style.cursor = 'grabbing';
+  dragPiece.el.style.boxShadow = '0 8px 24px rgba(0,0,0,.4)';
+  dragPiece.el.style.transform = 'scale(1.06)';
+  dragPiece.el.style.transition = 'box-shadow .15s ease, transform .15s ease';
+
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+  document.addEventListener('touchmove', onDragMove, { passive: false });
+  document.addEventListener('touchend', onDragEnd);
+}
+
+function onDragMove(e) {
+  if (!dragPiece) return;
+  e.preventDefault();
+
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+  const area = document.getElementById('puzzleArea');
+  const areaRect = area.getBoundingClientRect();
+  const pieceSize = parseFloat(dragPiece.el.style.width);
+
+  let newX = clientX - areaRect.left - dragOffX;
+  let newY = clientY - areaRect.top - dragOffY;
+
+  newX = Math.max(0, Math.min(newX, areaRect.width - pieceSize));
+  newY = Math.max(0, Math.min(newY, areaRect.height - pieceSize));
+
+  dragPiece.x = newX;
+  dragPiece.y = newY;
+  dragPiece.el.style.left = newX + 'px';
+  dragPiece.el.style.top = newY + 'px';
+  dragPiece.el.style.transform = 'scale(1.06)';
+}
+
+function onDragEnd(e) {
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  document.removeEventListener('touchmove', onDragMove);
+  document.removeEventListener('touchend', onDragEnd);
+
+  if (!dragPiece) return;
+
+  dragPiece.el.style.cursor = 'grab';
+  dragPiece.el.style.zIndex = '1';
+  dragPiece.el.style.transition = 'all .35s cubic-bezier(.34,1.56,.64,1)';
+
+  // 检查吸附（Phase 3完善）
+  trySnap(dragPiece);
+
+  moveCount++;
+  dragPiece = null;
+}
+
+// ===== 吸附检测（Phase 2基础版） =====
+function trySnap(piece) {
+  const area = document.getElementById('puzzleArea');
+  const areaW = area.clientWidth;
+  const grid = puzzleCfg.grid;
+  const pieceSize = Math.floor(Math.min(areaW, area.clientHeight) / grid);
+  const offsetX = (areaW - pieceSize * grid) / 2;
+  const offsetY = (area.clientHeight - pieceSize * grid) / 2;
+
+  const snapR = puzzleCfg.snapRange;
+  const correctX = offsetX + piece.correctCol * pieceSize;
+  const correctY = offsetY + piece.correctRow * pieceSize;
+
+  const dist = Math.hypot(piece.x - correctX, piece.y - correctY);
+
+  if (dist < snapR) {
+    // 检查目标位置是否有其他已放置拼块
+    const occupied = pieces.some(p =>
+      p.id !== piece.id && p.placed &&
+      p.correctRow === piece.correctRow && p.correctCol === piece.correctCol
+    );
+    if (occupied) {
+      // 弹回
+      piece.el.style.left = dragStartX + 'px';
+      piece.el.style.top = dragStartY + 'px';
+      piece.x = dragStartX;
+      piece.y = dragStartY;
+      return;
+    }
+
+    // 吸附
+    piece.x = correctX;
+    piece.y = correctY;
+    piece.placed = true;
+    piece.el.style.left = correctX + 'px';
+    piece.el.style.top = correctY + 'px';
+    piece.el.style.transform = 'rotate(0deg)';
+    piece.el.style.boxShadow = '0 1px 4px rgba(255,255,255,.15)';
+    piece.el.style.cursor = 'default';
+    piece.el.style.pointerEvents = 'none';
+    updateProgress();
+    checkComplete();
+  } else {
+    piece.el.style.transform = `rotate(${piece.rotation}deg)`;
+    piece.el.style.boxShadow = '0 2px 8px rgba(0,0,0,.3)';
+  }
+
+  setTimeout(() => {
+    piece.el.style.transition = 'box-shadow .15s ease, transform .15s ease';
+  }, 400);
+}
+
+function updateProgress() {
+  if (!puzzleCfg) return;
+  const placed = pieces.filter(p => p.placed).length;
+  const total = puzzleCfg.grid * puzzleCfg.grid;
+  document.getElementById('hudProgress').textContent = `${placed}/${total}`;
+  document.getElementById('progressFill').style.width = (placed / total * 100) + '%';
+}
+
+// ===== 完成检测（Phase 2基础版，Phase 4完善动画） =====
+function checkComplete() {
+  if (!puzzleCfg) return;
+  const total = puzzleCfg.grid * puzzleCfg.grid;
+  const placed = pieces.filter(p => p.placed).length;
+  if (placed === total) {
+    stopTimer();
+    // Phase 4 将在此添加完整完成动画
+    setTimeout(() => showCompleteModal(), 400);
+  }
+}
+
+function showCompleteModal() {
+  const stars = calcStarsLocal();
+
+  // 存档
+  if (currentLevel && currentDiff) {
+    const key = `puzzle_best_${currentLevel.id}_${currentDiff}`;
+    const prev = JSON.parse(localStorage.getItem(key) || '{}');
+    if (!prev.stars || stars > prev.stars || (stars === prev.stars && timerSeconds < prev.time)) {
+      localStorage.setItem(key, JSON.stringify({ time: timerSeconds, stars, moves: moveCount, date: new Date().toISOString() }));
+    }
+  }
+
+  const starEls = document.querySelectorAll('#starsDisplay .s');
+  starEls.forEach((el, i) => {
+    el.classList.remove('earned');
+    if (i < stars) setTimeout(() => el.classList.add('earned'), 200 + i * 150);
+  });
+  document.getElementById('statTime').textContent = formatTime(timerSeconds);
+  document.getElementById('statMoves').textContent = moveCount;
+  document.getElementById('completeOverlay2').classList.remove('hidden');
+}
+
+function calcStarsLocal() {
+  const bonus = puzzleCfg ? puzzleCfg.timeBonus : 1;
+  if (timerSeconds < 30 * bonus) return 3;
+  if (timerSeconds < 90 * bonus) return 2;
+  return 1;
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
 }
 
 // ===== 参考图 =====
