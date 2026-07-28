@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>图片拼图 - Mini Game Platform</title>
+<link rel="stylesheet" href="../../shared/platform.css">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font-display);
+  background: var(--bg-deep);
+  min-height: 100dvh;
+  display: flex; justify-content: center; align-items: center;
+  overflow-x: hidden;
+  -webkit-user-select:none; user-select:none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* =============================================================
+   VIEW TRANSITIONS
+   ============================================================= */
+.view {
+  position: relative; z-index:2;
+  width:100%; max-width:420px; padding:16px;
+  transition: opacity .3s ease, transform .3s ease;
+}
+.view.hidden {
+  display:none; opacity:0; transform:translateY(10px);
+}
+
+/* =============================================================
+   LEVEL SELECT VIEW
+   ============================================================= */
+.level-select { padding: 16px; }
+
+.level-select .page-title {
+  text-align: center; margin-bottom: 6px;
+}
+.page-title h1 {
+  font-size: 24px; font-weight:900; letter-spacing:1px;
+  background: linear-gradient(180deg, #fff 20%, #c4b5fd 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.page-title .sub {
+  font-size: 11px; color: var(--text-dim); letter-spacing:2px; margin-top:2px;
+}
+
+/* 关卡卡片网格 */
+.level-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.level-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.level-card:active {
+  transform: scale(.95);
+  border-color: rgba(168,85,247,.4);
+  box-shadow: 0 0 24px rgba(139,92,246,.2);
+}
+
+.level-card .card-img {
+  aspect-ratio: 1; overflow:hidden;
+}
+.level-card .card-img img {
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+
+.level-card .card-label {
+  padding: 12px 12px;
+  text-align: center;
+  font-size: 14px; font-weight:700; color:#fff; letter-spacing:.3px;
+}
+
+.level-card .card-best {
+  font-size: 10px; color: rgba(255,255,255,.3);
+  margin-top: 2px;
+}
+
+/* =============================================================
+   DIFFICULTY MODAL
+   ============================================================= */
+.diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.diff-btn {
+  padding: 16px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+  font-family: var(--font-display);
+}
+
+.diff-btn .diff-size { font-size: 20px; font-weight:900; display:block; }
+.diff-btn .diff-label{ font-size: 10px; color:rgba(255,255,255,.4); margin-top:4px; display:block; }
+
+.diff-btn:active {
+  background: rgba(168,85,247,.2);
+  border-color: rgba(168,85,247,.5);
+}
+
+/* =============================================================
+   GAME VIEW
+   ============================================================= */
+.game-view { padding: 14px; }
+
+/* HUD */
+.hud {
+  display: flex; align-items:center; gap:8px;
+  margin-bottom: 8px;
+}
+
+.hud-item {
+  flex:1; padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  text-align: center;
+}
+
+.hud-item .hud-label {
+  font-size: 9px; font-weight:700; letter-spacing:1px;
+  color: rgba(255,255,255,.3); text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.hud-item .hud-val {
+  font-size: 17px; font-weight:900; color:#fff;
+}
+
+/* 进度条 */
+.progress-wrap {
+  height: 4px; border-radius:2px;
+  background: rgba(255,255,255,.06);
+  margin-bottom: 12px; overflow:hidden;
+}
+.progress-fill {
+  height:100%; border-radius:2px;
+  background: linear-gradient(90deg, #a78bfa, var(--accent-gold));
+  transition: width .3s ease;
+  width: 0%;
+}
+
+/* 拼图区 */
+.puzzle-area {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+  overflow: hidden;
+}
+
+/* 参考图低透明度背景 */
+.puzzle-area .bg-ref {
+  position: absolute; inset:0;
+  background-size: cover; background-position:center;
+  opacity: .12;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* 拼块容器 */
+.pieces-layer {
+  position: absolute; inset:0; z-index:1;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex; justify-content:center; gap:12px;
+  margin-top: 14px;
+}
+
+.tool-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  font-size: 20px;
+  display: flex; align-items:center; justify-content:center;
+  transition: all var(--transition-fast);
+}
+.tool-btn:active { background: rgba(255,255,255,.12); }
+
+/* =============================================================
+   REFERENCE IMAGE PANEL
+   ============================================================= */
+.ref-panel {
+  position: fixed; inset:0; z-index:90;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex; align-items:center; justify-content:center;
+}
+.ref-panel img {
+  max-width: 85vw; max-height: 75vh;
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 48px rgba(0,0,0,.5);
+}
+
+/* =============================================================
+   COMPLETION ANIMATION ELEMENTS
+   ============================================================= */
+.frame-glow {
+  position: absolute; inset:-4px;
+  border-radius: var(--radius-md);
+  border: 3px solid transparent;
+  pointer-events:none; z-index:5;
+  transition: border-color .8s ease, box-shadow .8s ease;
+}
+.frame-glow.active {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 32px rgba(251,191,36,.3), inset 0 0 32px rgba(251,191,36,.08);
+}
+
+.complete-overlay {
+  position: absolute; inset:0; z-index:10;
+  background: rgba(0,0,0,.0);
+  pointer-events:none;
+  transition: background .6s ease;
+}
+.complete-overlay.active {
+  background: rgba(0,0,0,.45);
+}
+
+.canvas-confetti {
+  position: fixed; inset:0; pointer-events:none; z-index:150;
+}
+
+/* =============================================================
+   COMPLETION MODAL
+   ============================================================= */
+.stars-display {
+  display: flex; justify-content:center; gap:8px; margin:10px 0 6px;
+}
+.stars-display .s {
+  font-size: 30px; color:rgba(255,255,255,.15);
+}
+.stars-display .s.earned {
+  color: var(--accent-gold);
+  animation: starPop .45s ease-out forwards;
+}
+@keyframes starPop {
+  0%{transform:scale(0);} 60%{transform:scale(1.35);} 100%{transform:scale(1);}
+}
+
+.complete-stats {
+  display: flex; justify-content:center; gap:24px;
+  margin: 8px 0 18px;
+}
+.complete-stat {
+  text-align: center;
+}
+.complete-stat .val {
+  font-size: 20px; font-weight:900; color:#fff;
+}
+.complete-stat .lbl {
+  font-size: 10px; color:rgba(255,255,255,.35); letter-spacing:1px; margin-top:2px;
+}
+</style>
+</head>
+<body>
+
+<div class="bg-space"></div>
+<div class="bg-stars"></div>
+<div class="glow-orb purple"></div>
+<div class="glow-orb blue"></div>
+<div class="glow-orb pink"></div>
+
+<!-- ========== 关卡选择 ========== -->
+<div class="view level-select" id="levelView">
+  <div class="back-pill" onclick="location.href='../../index.html'">← 大厅</div>
+  <div class="page-title">
+    <h1>图片拼图</h1>
+    <div class="sub">JIGSAW PUZZLE</div>
+  </div>
+  <div class="level-grid" id="levelGrid"></div>
+</div>
+
+<!-- ========== 游戏界面 ========== -->
+<div class="view game-view hidden" id="gameView">
+  <div class="back-pill" onclick="showLevelSelect()">← 关卡</div>
+
+  <div class="hud">
+    <div class="hud-item"><div class="hud-label">关卡</div><div class="hud-val" id="hudLevel">-</div></div>
+    <div class="hud-item"><div class="hud-label">用时</div><div class="hud-val" id="hudTime">00:00</div></div>
+    <div class="hud-item"><div class="hud-label">进度</div><div class="hud-val" id="hudProgress">0/16</div></div>
+  </div>
+
+  <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="puzzle-area" id="puzzleArea">
+    <div class="bg-ref" id="bgRef"></div>
+    <div class="pieces-layer" id="piecesLayer"></div>
+    <div class="frame-glow" id="frameGlow"></div>
+    <div class="complete-overlay" id="completeOverlay"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool-btn" id="btnRef" title="参考图">📷</button>
+    <button class="tool-btn" id="btnRestart" title="重新开始">🔄</button>
+    <button class="tool-btn" id="btnSettings" title="设置" disabled style="opacity:.3">⚙</button>
+  </div>
+</div>
+
+<!-- ========== 参考图弹窗 ========== -->
+<div class="ref-panel hidden" id="refPanel" onclick="this.classList.add('hidden')">
+  <img id="refImage" src="" alt="参考图">
+</div>
+
+<!-- ========== 难度选择弹窗 ========== -->
+<div id="diffOverlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-icon">🧩</div>
+    <div class="modal-title">选择难度</div>
+    <div class="modal-subtitle" id="diffLevelName"></div>
+    <div class="diff-grid">
+      <button class="diff-btn" data-diff="easy">  <span class="diff-size">3×3</span><span class="diff-label">简单</span></button>
+      <button class="diff-btn" data-diff="normal"><span class="diff-size">4×4</span><span class="diff-label">普通</span></button>
+      <button class="diff-btn" data-diff="hard">  <span class="diff-size">5×5</span><span class="diff-label">困难</span></button>
+      <button class="diff-btn" data-diff="expert"><span class="diff-size">6×6</span><span class="diff-label">专家</span></button>
+    </div>
+    <button class="btn-secondary" onclick="closeDiffModal()" style="width:100%">取消</button>
+  </div>
+</div>
+
+<!-- ========== 完成弹窗 ========== -->
+<div id="completeOverlay2" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-icon">🎉</div>
+    <div class="modal-title">拼图完成！</div>
+    <div class="stars-display" id="starsDisplay">
+      <span class="s">★</span><span class="s">★</span><span class="s">★</span>
+    </div>
+    <div class="complete-stats">
+      <div class="complete-stat"><div class="val" id="statTime">-</div><div class="lbl">用时</div></div>
+      <div class="complete-stat"><div class="val" id="statMoves">-</div><div class="lbl">移动</div></div>
+    </div>
+    <button class="btn-primary" onclick="restartPuzzle()" style="margin-bottom:8px">再玩一次</button>
+    <button class="btn-secondary" onclick="closeCompleteModal()" style="width:100%">返回关卡</button>
+  </div>
+</div>
+
+<canvas class="canvas-confetti hidden" id="confettiCanvas"></canvas>
+
+<script>
+// ===== 关卡配置 =====
+const LEVELS = [
+  { id:'cat', image:'../../test1.jpg', name:'小猫' },
+  { id:'dog', image:'../../test2.jpg', name:'小狗' },
+  { id:'flower', image:'../../test3.jpg', name:'花朵' },
+];
+
+const DIFFICULTIES = {
+  easy:   { grid:3, label:'3×3', pieces:9,  snapRange:40, timeBonus:1.0 },
+  normal: { grid:4, label:'4×4', pieces:16, snapRange:30, timeBonus:1.2 },
+  hard:   { grid:5, label:'5×5', pieces:25, snapRange:22, timeBonus:1.5 },
+  expert: { grid:6, label:'6×6', pieces:36, snapRange:18, timeBonus:2.0 },
+};
+
+// ===== 状态 =====
+let currentLevel = null;
+let currentDiff = 'normal';
+let gameState = null;
+
+// ===== 关卡选择 =====
+function renderLevelCards() {
+  const grid = document.getElementById('levelGrid');
+  grid.innerHTML = '';
+
+  LEVELS.forEach(lv => {
+    const bestKey = `puzzle_best_${lv.id}_${currentDiff}`;
+    const best = JSON.parse(localStorage.getItem(bestKey) || '{}');
+
+    const card = document.createElement('div');
+    card.className = 'level-card';
+    card.innerHTML = `
+      <div class="card-img"><img src="${lv.image}" alt="${lv.name}" draggable="false"></div>
+      <div class="card-label">${lv.name}
+        ${best.stars ? `<div class="card-best">最佳: ${best.stars ? '★'.repeat(best.stars) : '-'} ${best.time || ''}s</div>` : ''}
+      </div>
+    `;
+    card.addEventListener('click', () => openDiffModal(lv));
+    grid.appendChild(card);
+  });
+}
+
+// ===== 难度弹窗 =====
+let pendingLevel = null;
+
+function openDiffModal(level) {
+  pendingLevel = level;
+  document.getElementById('diffLevelName').textContent = level.name;
+  document.getElementById('diffOverlay').classList.remove('hidden');
+
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.onclick = () => {
+      currentDiff = btn.dataset.diff;
+      closeDiffModal();
+      startGame(level, currentDiff);
+    };
+  });
+}
+
+function closeDiffModal() {
+  document.getElementById('diffOverlay').classList.add('hidden');
+}
+
+// ===== 视图切换 =====
+function showLevelSelect() {
+  stopTimer();
+  document.getElementById('levelView').classList.remove('hidden');
+  document.getElementById('gameView').classList.add('hidden');
+  document.getElementById('completeOverlay2').classList.add('hidden');
+  renderLevelCards();
+}
+
+function startGame(level, diff) {
+  currentLevel = level;
+  currentDiff = diff;
+  document.getElementById('levelView').classList.add('hidden');
+  document.getElementById('gameView').classList.remove('hidden');
+  initPuzzle(level, diff);
+}
+
+// ===== 计时器 =====
+let timerInterval = null;
+let timerSeconds = 0;
+
+function startTimer() {
+  stopTimer();
+  timerSeconds = 0;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    timerSeconds++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerSeconds / 60);
+  const s = timerSeconds % 60;
+  document.getElementById('hudTime').textContent =
+    String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+// ===== 拼图初始化（Phase 1仅布局，Phase 2加逻辑） =====
+function initPuzzle(level, diff) {
+  const cfg = DIFFICULTIES[diff];
+  document.getElementById('hudLevel').textContent = level.name;
+  document.getElementById('hudProgress').textContent = `0/${cfg.pieces}`;
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('bgRef').style.backgroundImage = `url(${level.image})`;
+  document.getElementById('frameGlow').classList.remove('active');
+  document.getElementById('completeOverlay').classList.remove('active');
+  document.getElementById('piecesLayer').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,.2);font-size:13px">
+      拼图区域<br>${cfg.label} · 准备开始
+    </div>
+  `;
+
+  startTimer();
+}
+
+// ===== 参考图 =====
+document.getElementById('btnRef').addEventListener('click', () => {
+  if (!currentLevel) return;
+  document.getElementById('refImage').src = currentLevel.image;
+  document.getElementById('refPanel').classList.remove('hidden');
+});
+
+// ===== 重新开始 =====
+document.getElementById('btnRestart').addEventListener('click', () => {
+  if (!currentLevel) return;
+  initPuzzle(currentLevel, currentDiff);
+});
+
+function restartPuzzle() {
+  document.getElementById('completeOverlay2').classList.add('hidden');
+  if (currentLevel) initPuzzle(currentLevel, currentDiff);
+}
+
+function closeCompleteModal() {
+  document.getElementById('completeOverlay2').classList.add('hidden');
+  showLevelSelect();
+}
+
+// ===== 启动 =====
+renderLevelCards();
+</script>
+</body>
+</html>
