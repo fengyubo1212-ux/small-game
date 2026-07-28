@@ -496,6 +496,16 @@ function updateCellImage(r, c) {
   }
 }
 
+function updateAllCells() {
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    const r = +cell.dataset.row;
+    const c = +cell.dataset.col;
+    cell.classList.remove('removing');
+    cell.querySelector('img').src = IMAGES[board[r][c]];
+  });
+}
+
 // ===== 触摸交互 =====
 let touchStartRow = -1, touchStartCol = -1;
 let touchStartX = 0, touchStartY = 0;
@@ -715,11 +725,6 @@ function markRemovingCells(matches) {
   }
 }
 
-function markNewCells() {
-  const cells = document.querySelectorAll('.cell');
-  cells.forEach(c => c.classList.remove('removing'));
-}
-
 async function executeSwap(r1, c1, r2, c2) {
   state.gameStatus = 'swapping';
   swap(r1, c1, r2, c2);
@@ -771,8 +776,7 @@ async function executeSwap(r1, c1, r2, c2) {
 
     applyGravity();
     fillBoard();
-    renderBoard();
-    markNewCells();
+    updateAllCells();
     await sleep(300);
   }
 
