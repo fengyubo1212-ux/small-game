@@ -73,10 +73,11 @@
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.1);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
 }
-.back-pill:active { background: rgba(255,255,255,.14); color:#fff; }
+.back-pill:hover { background: rgba(255,255,255,.08); }
+.back-pill:active { background: rgba(255,255,255,.14); color:#fff; transform:scale(.96); }
 
 /* ---- 基础按钮 ---- */
 .btn-primary {
@@ -102,8 +103,10 @@
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
+.btn-secondary:hover { background: rgba(255,255,255,.08); }
+.btn-secondary:active { background: rgba(255,255,255,.14); color:#fff; transform:scale(.96); }
 .btn-secondary:active { background: rgba(255,255,255,.14); color:#fff; }
 
 /* ---- 弹窗遮罩 ---- */

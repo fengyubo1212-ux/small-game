@@ -104,29 +104,31 @@ body {
 }
 
 .diff-btn {
-  padding: 16px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.04);
+  padding: 18px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
   color: #fff;
   cursor: pointer;
   text-align: center;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
   font-family: var(--font-display);
 }
 
-.diff-btn .diff-size { font-size: 20px; font-weight:900; display:block; }
-.diff-btn .diff-label{ font-size: 10px; color:rgba(255,255,255,.4); margin-top:4px; display:block; }
+.diff-btn .diff-size { font-size: 22px; font-weight:900; display:block; letter-spacing:-.5px; }
+.diff-btn .diff-label{ font-size: 11px; color:rgba(255,255,255,.35); margin-top:4px; display:block; letter-spacing:.5px; }
 
+.diff-btn:hover { background: rgba(255,255,255,.06); }
 .diff-btn:active {
-  background: rgba(168,85,247,.2);
-  border-color: rgba(168,85,247,.5);
+  background: rgba(168,85,247,.18);
+  border-color: rgba(168,85,247,.4);
+  transform: scale(.96);
 }
 
 /* =============================================================
    GAME VIEW
    ============================================================= */
-.game-view { padding: 14px; }
+.game-view { padding: 16px; }
 
 /* HUD */
 .hud {
@@ -160,8 +162,17 @@ body {
 .progress-fill {
   height:100%; border-radius:2px;
   background: linear-gradient(90deg, #a78bfa, var(--accent-gold));
-  transition: width .3s ease;
+  transition: width .4s cubic-bezier(.16,1,.3,1);
   width: 0%;
+}
+
+/* 拼块桌面端hover */
+@media (hover: hover) {
+  .puzzle-piece:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,.35) !important;
+    transform: scale(1.03) !important;
+    z-index: 5 !important;
+  }
 }
 
 /* 拼图区 */
@@ -940,6 +951,37 @@ function closeCompleteModal() {
   document.getElementById('confettiCanvas').classList.add('u-hidden');
   showLevelSelect();
 }
+
+// ===== 窗口大小变化：重算拼块位置 =====
+let _resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimeout);
+  _resizeTimeout = setTimeout(() => {
+    if (!puzzleCfg || puzzleCompleted || pieces.length === 0) return;
+    const area = document.getElementById('puzzleArea');
+    const areaW = area.clientWidth;
+    const areaH = area.clientHeight;
+    const grid = puzzleCfg.grid;
+    const pieceSize = Math.floor(Math.min(areaW, areaH) / grid);
+    const offsetX = (areaW - pieceSize * grid) / 2;
+    const offsetY = (areaH - pieceSize * grid) / 2;
+
+    pieces.forEach(p => {
+      p.el.style.width = pieceSize + 'px';
+      p.el.style.height = pieceSize + 'px';
+      p.el.style.backgroundSize = areaW + 'px ' + areaH + 'px';
+      p.el.style.backgroundPosition = `-${p.correctCol * pieceSize}px -${p.correctRow * pieceSize}px`;
+
+      if (p.placed) {
+        const cx = offsetX + p.correctCol * pieceSize;
+        const cy = offsetY + p.correctRow * pieceSize;
+        p.x = cx; p.y = cy;
+        p.el.style.left = cx + 'px';
+        p.el.style.top = cy + 'px';
+      }
+    });
+  }, 300);
+});
 
 // ===== 页面可见性：后台暂停计时 =====
 document.addEventListener('visibilitychange', () => {
