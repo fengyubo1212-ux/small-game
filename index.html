@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>图片消消乐</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e8e0f0 0%, #d0e0f0 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.game-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px;
+}
+
+.status-bar {
+  background: white;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.status-bar .level-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.status-bar .info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #666;
+}
+
+.status-bar .steps-bar {
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.status-bar .steps-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b6b, #ffa94d);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 3px;
+  background: white;
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.cell {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.2s, opacity 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cell.swapping {
+  opacity: 0.5;
+  transform: scale(0.9);
+}
+
+.cell.removing {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.cell.new-cell {
+  animation: dropIn 0.3s ease-in;
+}
+
+@keyframes dropIn {
+  from { transform: translateY(-60px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.combo-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  font-weight: 900;
+  color: #ff6b6b;
+  text-shadow: 0 2px 8px rgba(255,107,107,0.4);
+  pointer-events: none;
+  z-index: 10;
+  animation: comboBounce 0.6s ease-out forwards;
+}
+
+@keyframes comboBounce {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal {
+  background: white;
+  border-radius: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  width: 280px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.modal .icon { font-size: 48px; margin-bottom: 12px; }
+.modal .title { font-size: 22px; font-weight: 700; color: #333; margin-bottom: 8px; }
+.modal .subtitle { font-size: 14px; color: #888; margin-bottom: 20px; }
+.modal button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div class="game-container">
+  <div class="status-bar">
+    <div class="level-title" id="levelTitle">第 1 关</div>
+    <div class="info-row">
+      <span id="scoreText">分数: 0 / 100</span>
+      <span id="stepsText">步数: 20</span>
+    </div>
+    <div class="steps-bar">
+      <div class="steps-fill" id="stepsFill" style="width:100%"></div>
+    </div>
+  </div>
+  <div class="board" id="board"></div>
+</div>
+<div id="overlayContainer"></div>
+<div id="comboContainer"></div>
+
+<script>
+// ===== 游戏状态 =====
+const ROWS = 6, COLS = 6;
+const IMAGES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
+
+let board = [];
+let state = {
+  level: 1,
+  score: 0,
+  target: 100,
+  stepsLeft: 20,
+  totalSteps: 20,
+  comboCount: 0,
+  gameStatus: 'idle',
+};
+
+// ===== 关卡配置 =====
+function getLevelConfig(n) {
+  if (n <= 9) {
+    const targets = [100, 200, 350, 500, 700, 900, 1200, 1500, 1800];
+    const steps = [20, 20, 18, 18, 16, 16, 15, 15, 14];
+    return { target: targets[n - 1], steps: steps[n - 1] };
+  }
+  const target = 2000 + (n - 10) * 300;
+  const steps = Math.max(10, 14 - Math.floor(n / 5));
+  return { target, steps };
+}
+
+// ===== 棋盘初始化 =====
+function initBoard() {
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
+    board[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      let type;
+      do {
+        type = Math.floor(Math.random() * 3);
+      } while (
+        (c >= 2 && board[r][c - 1] === type && board[r][c - 2] === type) ||
+        (r >= 2 && board[r - 1][c] === type && board[r - 2][c] === type)
+      );
+      board[r][c] = type;
+    }
+  }
+}
+
+function resetLevel() {
+  const cfg = getLevelConfig(state.level);
+  state.score = 0;
+  state.target = cfg.target;
+  state.stepsLeft = cfg.steps;
+  state.totalSteps = cfg.steps;
+  state.comboCount = 0;
+  state.gameStatus = 'idle';
+  initBoard();
+  updateUI();
+  renderBoard();
+}
+</script>
+</body>
+</html>
