@@ -491,7 +491,9 @@ function startGame(level, diff) {
     gameView.classList.remove('u-hidden');
     gameView.classList.remove('fade-out');
     gameView.classList.add('fade-in');
-    initPuzzle(level, diff);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => initPuzzle(level, diff));
+    });
   }, 250);
 }
 
