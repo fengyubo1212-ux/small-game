@@ -433,11 +433,9 @@ let _pendingLevel = null;
 document.getElementById('diffOverlay').addEventListener('click', function(e) {
   const btn = e.target.closest('.diff-btn');
   if (btn && _pendingLevel) {
-    console.log('[DIFF CLICK] _pendingLevel:', _pendingLevel.id, 'diff:', btn.dataset.diff);
     currentDiff = btn.dataset.diff;
     const levelToStart = _pendingLevel;
     closeDiffModal();
-    console.log('[DIFF CLICK] after closeDiffModal, levelToStart:', levelToStart.id);
     startGame(levelToStart, currentDiff);
   }
 });
@@ -538,11 +536,12 @@ let dragPiece = null;
 let dragStartX = 0, dragStartY = 0;
 let dragOffX = 0, dragOffY = 0;
 let puzzleCompleted = false;
+let _initLock = false;
 
 function initPuzzle(level, diff) {
-  console.log('[INIT] level:', level, 'diff:', diff);
-  if (!level) { console.error('[INIT] FAIL: level is null/undefined'); return; }
-  if (!diff) { console.error('[INIT] FAIL: diff is null/undefined'); return; }
+  if (_initLock) return;
+  if (!level || !diff) return;
+  _initLock = true;
 
   puzzleCfg = DIFFICULTIES[diff];
   if (!puzzleCfg) return;
@@ -608,6 +607,7 @@ function initPuzzle(level, diff) {
 
   updateProgress();
   startTimer();
+  _initLock = false;
 }
 
 function generateScatteredPositions(count, areaW, areaH, pieceSize) {
