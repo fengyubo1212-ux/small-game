@@ -6,13 +6,6 @@
 <title>贪吃蛇 - MiniVerse</title>
 <link rel="stylesheet" href="../../shared/platform.css">
 <style>
-:root {
-  --snake-head: #a78bfa;
-  --snake-body: #8b5cf6;
-  --snake-tail: rgba(139,92,246,.25);
-  --food-gold: #fbbf24;
-}
-
 * { margin:0; padding:0; box-sizing:border-box; }
 
 body {
@@ -155,9 +148,9 @@ body {
 
   <div class="canvas-wrap" id="canvasWrap">
     <canvas id="gameCanvas"></canvas>
-    <div class="ready-overlay" id="readyOverlay">
+    <div class="ready-overlay" id="readyOverlay" onclick="startCountdown()">
       <div class="title">MiniVerse Snake</div>
-      <div class="hint" id="readyHint">按下方向键 或 点击开始</div>
+      <div class="hint" id="readyHint">点击任意位置 或 按方向键开始</div>
       <div class="countdown" id="countdownText"></div>
     </div>
     <div class="pause-overlay" id="pauseOverlay">
@@ -538,7 +531,7 @@ function showResult() {
   document.getElementById('resultSub').innerHTML = `
     <div style="display:flex;justify-content:center;gap:20px;margin:8px 0">
       <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#fff">${score}</div><div style="font-size:10px;color:rgba(255,255,255,.35)">Score</div></div>
-      <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:var(--food-gold)">${STORAGE.best()}</div><div style="font-size:10px;color:rgba(255,255,255,.35)">Best</div></div>
+      <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#fbbf24">${STORAGE.best()}</div><div style="font-size:10px;color:rgba(255,255,255,.35)">Best</div></div>
       <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#fff">${foodEatenThisGame}</div><div style="font-size:10px;color:rgba(255,255,255,.35)">Food</div></div>
     </div>
   `;
