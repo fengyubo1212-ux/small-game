@@ -89,27 +89,33 @@ body {
 
 /* 移动端方向键 */
 .dpad {
-  display:none; justify-content:center; margin-top:14px;
+  display:none; justify-content:center; margin-top:16px; user-select:none;
 }
 .dpad-grid {
-  display:grid; grid-template-columns:56px 56px 56px; grid-template-rows:56px 56px 56px;
-  gap:4px;
+  display:grid;
+  grid-template-columns:64px 64px 64px;
+  grid-template-rows:64px 64px 64px;
+  gap:8px;
 }
 .dpad-btn {
-  width:56px; height:56px; border-radius:16px;
-  background: var(--glass-bg); border:1px solid var(--glass-border);
-  cursor:pointer; font-size:22px; display:flex; align-items:center; justify-content:center;
-  color:rgba(255,255,255,.55);
-  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  width:64px; height:64px; border-radius:18px;
+  background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  cursor:pointer; font-size:26px; display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,.6);
+  transition: background .1s ease, transform .1s ease, box-shadow .1s ease;
   -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
-.dpad-btn:active { background:rgba(168,85,247,.25); box-shadow:0 0 14px rgba(139,92,246,.3); transform:scale(.9); }
-.dpad-empty { width:56px; height:56px; }
+.dpad-btn:active {
+  background:rgba(168,85,247,.3); border-color:rgba(168,85,247,.5);
+  box-shadow:0 0 20px rgba(139,92,246,.4); transform:scale(.88);
+}
+.dpad-empty { width:64px; height:64px; }
 
 /* Combo 提示 */
 .combo-pop {
   position:fixed; top:40%; left:50%; transform:translate(-50%,-50%);
-  font-size:28px; font-weight:900; color:var(--food-gold);
+  font-size:28px; font-weight:900; color:#fbbf24;
   text-shadow:0 0 20px rgba(251,191,36,.5);
   pointer-events:none; z-index:30; opacity:0;
   animation: comboIn .7s ease-out forwards;
@@ -124,12 +130,12 @@ body {
 .new-best {
   position:fixed; top:30%; left:50%; transform:translate(-50%,-50%);
   font-size:20px; font-weight:900; letter-spacing:2px;
-  color:var(--food-gold); text-shadow:0 0 24px rgba(251,191,36,.6);
+  color:#fbbf24; text-shadow:0 0 24px rgba(251,191,36,.6);
   pointer-events:none; z-index:30; opacity:0;
   animation: comboIn 1s ease-out forwards;
 }
 
-@media (hover:none) and (pointer:coarse) {
+@media (any-pointer: coarse) {
   .dpad { display:flex; }
 }
 </style>
