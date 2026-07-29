@@ -434,8 +434,9 @@ document.getElementById('diffOverlay').addEventListener('click', function(e) {
   const btn = e.target.closest('.diff-btn');
   if (btn && _pendingLevel) {
     currentDiff = btn.dataset.diff;
+    const levelToStart = _pendingLevel;
     closeDiffModal();
-    startGame(_pendingLevel, currentDiff);
+    startGame(levelToStart, currentDiff);
   }
 });
 
@@ -479,8 +480,6 @@ function showLevelSelect() {
 }
 
 function startGame(level, diff) {
-  console.log('=== [START GAME] ===');
-  console.log('level:', level ? level.id : 'NULL', 'diff:', diff);
   currentLevel = level;
   currentDiff = diff;
   const levelView = document.getElementById('levelView');
@@ -493,12 +492,8 @@ function startGame(level, diff) {
     gameView.classList.remove('u-hidden');
     gameView.classList.remove('fade-out');
     gameView.classList.add('fade-in');
-    console.log('gameView u-hidden removed, display:', getComputedStyle(gameView).display);
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        console.log('calling initPuzzle from double RAF');
-        initPuzzle(level, diff);
-      });
+      requestAnimationFrame(() => initPuzzle(level, diff));
     });
   }, 250);
 }
@@ -543,49 +538,21 @@ let dragOffX = 0, dragOffY = 0;
 let puzzleCompleted = false;
 
 function initPuzzle(level, diff) {
-  console.log('=== [INIT PUZZLE] START ===');
-
-  // ① 关卡对象
-  console.log('① Level:', JSON.stringify(level));
-  console.log('   Difficulty key:', diff);
-  if (!level) { console.error('❌ level is null/undefined'); return; }
-  if (!diff) { console.error('❌ diff is null/undefined'); return; }
+  if (!level) return;
+  if (!diff) return;
 
   puzzleCfg = DIFFICULTIES[diff];
-  if (!puzzleCfg) { console.error('❌ DIFFICULTIES[' + diff + '] not found. Keys:', Object.keys(DIFFICULTIES)); return; }
-  console.log('   puzzleCfg:', JSON.stringify(puzzleCfg));
-
-  // ② 图片加载
-  console.log('② Image path:', level.image);
-  const testImg = new Image();
-  testImg.onload = function() {
-    console.log('   Image loaded. Natural size:', testImg.naturalWidth + '×' + testImg.naturalHeight);
-  };
-  testImg.onerror = function() {
-    console.error('❌ Image load FAILED:', level.image);
-  };
-  testImg.src = level.image;
-
+  if (!puzzleCfg) return;
   puzzleCompleted = false;
-  const grid = puzzleCfg.grid;
-  console.log('③ Grid:', grid + '×' + grid, 'Expected pieces:', grid * grid);
 
-  // ④ 容器尺寸
+  const grid = puzzleCfg.grid;
   const area = document.getElementById('puzzleArea');
-  if (!area) { console.error('❌ #puzzleArea not found in DOM'); return; }
   const areaW = area.clientWidth;
   const areaH = area.clientHeight;
-  console.log('④ Puzzle area dimensions:', areaW + '×' + areaH);
-  if (areaW === 0 || areaH === 0) {
-    console.error('❌ Puzzle area has ZERO dimensions! Layout not complete.');
-    console.log('   area display:', getComputedStyle(area).display);
-    console.log('   parent display:', getComputedStyle(area.parentElement).display);
-    return;
-  }
+  if (areaW === 0 || areaH === 0) return;
 
   const pieceSize = Math.floor(Math.min(areaW, areaH) / grid);
-  console.log('   pieceSize:', pieceSize);
-  if (pieceSize === 0) { console.error('❌ pieceSize is 0'); return; }
+  if (pieceSize === 0) return;
 
   document.getElementById('hudLevel').textContent = level.name;
   document.getElementById('hudProgress').textContent = `0/${grid * grid}`;
@@ -598,26 +565,14 @@ function initPuzzle(level, diff) {
   pieces = [];
   moveCount = 0;
   const layer = document.getElementById('piecesLayer');
-  if (!layer) { console.error('❌ #piecesLayer not found'); return; }
-  console.log('⑤ piecesLayer children before:', layer.children.length);
   layer.innerHTML = '';
 
-  // ⑥ 生成散落位置
   const positions = generateScatteredPositions(grid * grid, areaW, areaH, pieceSize);
-  console.log('⑥ Positions generated:', positions.length);
 
-  if (positions.length !== grid * grid) {
-    console.error('❌ Position count mismatch! Expected', grid * grid, 'got', positions.length);
-    return;
-  }
-
-  // ⑦ 创建拼块
-  let createdCount = 0;
   for (let i = 0; i < grid * grid; i++) {
     const correctRow = Math.floor(i / grid);
     const correctCol = i % grid;
     const pos = positions[i];
-    if (!pos) { console.error('❌ Position[' + i + '] is undefined'); continue; }
 
     const el = document.createElement('div');
     el.className = 'puzzle-piece';
@@ -646,54 +601,19 @@ function initPuzzle(level, diff) {
       id: i, correctRow, correctCol, el,
       x: pos.x, y: pos.y, rotation: pos.rot, placed: false,
     });
-    createdCount++;
   }
-
-  console.log('⑦ Pieces created:', createdCount);
-  console.log('   piecesLayer children after:', layer.children.length);
-  console.log('   pieces array length:', pieces.length);
-
-  // ⑧ 验证首个拼块
-  if (pieces.length > 0) {
-    const p0 = pieces[0];
-    const cs = getComputedStyle(p0.el);
-    console.log('⑧ First piece check:');
-    console.log('   width:', cs.width, 'height:', cs.height);
-    console.log('   display:', cs.display, 'visibility:', cs.visibility);
-    console.log('   opacity:', cs.opacity, 'z-index:', cs.zIndex);
-    console.log('   position:', cs.position);
-    console.log('   left:', cs.left, 'top:', cs.top);
-    console.log('   backgroundImage:', cs.backgroundImage ? cs.backgroundImage.substring(0, 50) + '...' : 'NONE');
-  } else {
-    console.error('❌ No pieces created at all!');
-  }
-
-  console.log('=== [INIT PUZZLE] DONE ===');
 
   updateProgress();
   startTimer();
 }
 
 function generateScatteredPositions(count, areaW, areaH, pieceSize) {
-  console.log('--- generateScatteredPositions ---');
-  console.log('   count:', count, 'areaW:', areaW, 'areaH:', areaH, 'pieceSize:', pieceSize);
-
-  if (pieceSize <= 0) {
-    console.error('❌ pieceSize <= 0, cannot generate positions');
-    return [];
-  }
-
   const positions = [];
   const margin = 6;
   const maxAttempts = 300;
   const rangeX = areaW - pieceSize - margin * 2;
   const rangeY = areaH - pieceSize - margin * 2;
-  console.log('   rangeX:', rangeX, 'rangeY:', rangeY);
-
-  if (rangeX <= 0 || rangeY <= 0) {
-    console.error('❌ Position range is <= 0! Pieces are too big for the area.');
-    return [];
-  }
+  if (rangeX <= 0 || rangeY <= 0) return positions;
 
   for (let i = 0; i < count; i++) {
     let x, y, attempts = 0;
@@ -704,10 +624,6 @@ function generateScatteredPositions(count, areaW, areaH, pieceSize) {
     } while (attempts < maxAttempts && positions.some(p =>
       Math.abs(p.x - x) < pieceSize * 0.7 && Math.abs(p.y - y) < pieceSize * 0.7
     ));
-
-    if (attempts >= maxAttempts) {
-      console.warn('⚠ Piece', i, 'reached max attempts, using last position');
-    }
 
     const rot = (Math.random() - 0.5) * 8;
     positions.push({ x, y, rot });
