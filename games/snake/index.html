@@ -14,7 +14,7 @@ body {
   font-family: var(--font-display);
   background: var(--bg-deep);
   min-height: 100dvh;
-  display: flex; justify-content: center; align-items: center;
+  display: flex; justify-content: center; align-items: flex-start;
   overflow-x: hidden;
   -webkit-user-select:none; user-select:none;
   -webkit-tap-highlight-color: transparent;
@@ -137,6 +137,8 @@ body {
 
 @media (any-pointer: coarse) {
   .dpad { display:flex; }
+  .view { padding-top:8px; }
+  .canvas-wrap canvas { max-height:50vh; }
 }
 </style>
 </head>
@@ -246,7 +248,10 @@ let cw = 0, ch = 0;
 
 function resizeCanvas() {
   const wrap = document.getElementById('canvasWrap');
-  const w = Math.min(wrap.clientWidth - 16, 420);
+  const dpadVisible = getComputedStyle(document.getElementById('dpad')).display !== 'none';
+  const maxW = Math.min(wrap.clientWidth - 16, 420);
+  const maxH = dpadVisible ? Math.min(maxW, window.innerHeight * 0.45) : maxW;
+  const w = Math.floor(maxH);
   canvas.style.width = w + 'px';
   canvas.style.height = w + 'px';
   const dpr = devicePixelRatio || 1;
