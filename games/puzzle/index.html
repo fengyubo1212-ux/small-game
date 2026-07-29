@@ -559,8 +559,7 @@ function initPuzzle(level, diff) {
   document.getElementById('hudLevel').textContent = level.name;
   document.getElementById('hudProgress').textContent = `0/${grid * grid}`;
   document.getElementById('progressFill').style.width = '0%';
-  document.getElementById('bgRef').style.backgroundImage = `url(${level.image})`;
-  document.getElementById('bgRef').style.backgroundSize = 'cover';
+  document.getElementById('bgRef').style.backgroundImage = 'none';
 
   resetPuzzleAreaState();
 
