@@ -433,9 +433,11 @@ let _pendingLevel = null;
 document.getElementById('diffOverlay').addEventListener('click', function(e) {
   const btn = e.target.closest('.diff-btn');
   if (btn && _pendingLevel) {
+    console.log('[DIFF CLICK] _pendingLevel:', _pendingLevel.id, 'diff:', btn.dataset.diff);
     currentDiff = btn.dataset.diff;
     const levelToStart = _pendingLevel;
     closeDiffModal();
+    console.log('[DIFF CLICK] after closeDiffModal, levelToStart:', levelToStart.id);
     startGame(levelToStart, currentDiff);
   }
 });
@@ -538,8 +540,9 @@ let dragOffX = 0, dragOffY = 0;
 let puzzleCompleted = false;
 
 function initPuzzle(level, diff) {
-  if (!level) return;
-  if (!diff) return;
+  console.log('[INIT] level:', level, 'diff:', diff);
+  if (!level) { console.error('[INIT] FAIL: level is null/undefined'); return; }
+  if (!diff) { console.error('[INIT] FAIL: diff is null/undefined'); return; }
 
   puzzleCfg = DIFFICULTIES[diff];
   if (!puzzleCfg) return;
