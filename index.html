@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>MiniVerse - 你的随身游戏宇宙</title>
+<link rel="preload" as="image" href="test1.jpg">
+<link rel="preload" as="image" href="test2.jpg">
+<link rel="preload" as="image" href="test3.jpg">
 <style>
 /* ================================================================
    MINIVERSE — Design System
@@ -659,24 +662,44 @@ body {
 </footer>
 
 <script>
+// ===== 图片缩略图：用 Canvas 压到 200px，大厅加载快 10 倍 =====
+const IMG_FILES = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
+let THUMBS = {};
+
+async function initThumbnails() {
+  await Promise.all(IMG_FILES.map(src => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = 200; c.height = 200;
+      c.getContext('2d').drawImage(img, 0, 0, 200, 200);
+      c.toBlob(blob => {
+        THUMBS[src] = URL.createObjectURL(blob);
+        resolve();
+      }, 'image/jpeg', 0.55);
+    };
+    img.onerror = () => { THUMBS[src] = src; resolve(); };
+    img.src = src;
+  })));
+}
+
+function thumb(imgName) { return THUMBS[imgName] || imgName; }
+
 // ===== Hero 中央预览卡片 =====
-(function initHeroObject() {
-  const images = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
+function initHeroObject() {
   const grid = document.getElementById('hoGrid');
-  // 3×3 微缩棋盘，模拟游戏预览
-  const types = [0,1,2, 1,2,0, 2,0,1]; // 固定排列，看起来像真实棋盘
+  const types = [0,1,2, 1,2,0, 2,0,1];
   types.forEach(t => {
     const cell = document.createElement('div');
     cell.className = 'ho-cell';
-    cell.style.backgroundImage = `url(${images[t]})`;
+    cell.style.backgroundImage = `url(${thumb(IMG_FILES[t])})`;
     grid.appendChild(cell);
   });
-})();
+}
 
 // ===== 环绕碎片 =====
-(function initFloatingElements() {
+function initFloatingElements() {
   const container = document.getElementById('floatBlocks');
-  const images = ['test1.jpg', 'test2.jpg', 'test3.jpg'];
 
   const blockConfigs = [
     { x:5, y:5, rot:-3, dur:5.0, delay:0, img:0 },
@@ -693,7 +716,7 @@ body {
     el.style.setProperty('--rot', cfg.rot + 'deg');
     el.style.setProperty('--dur', cfg.dur + 's');
     el.style.setProperty('--delay', cfg.delay + 's');
-    el.style.backgroundImage = `url(${images[cfg.img]})`;
+    el.style.backgroundImage = `url(${thumb(IMG_FILES[cfg.img])})`;
     container.appendChild(el);
   });
 
@@ -710,9 +733,20 @@ body {
     el.style.setProperty('--rot', cfg.rot + 'deg');
     el.style.setProperty('--dur', cfg.dur + 's');
     el.style.setProperty('--delay', cfg.delay + 's');
-    el.style.backgroundImage = `url(${images[2]})`;
+    el.style.backgroundImage = `url(${thumb(IMG_FILES[2])})`;
     el.style.backgroundPosition = `-${cfg.col * 72}px -${cfg.row * 72}px`;
     container.appendChild(el);
+  });
+}
+
+// 缩略图就绪后渲染 Hero 元素 + 替换所有大图
+(async function boot() {
+  await initThumbnails();
+  initHeroObject();
+  initFloatingElements();
+  document.querySelectorAll('img').forEach(el => {
+    const orig = el.getAttribute('src');
+    if (THUMBS[orig]) el.src = THUMBS[orig];
   });
 })();
 
