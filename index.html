@@ -539,7 +539,7 @@ body {
   <a href="#featured" class="hero-cta">开始探索</a>
 
   <div class="hero-stat">
-    当前 <strong>2</strong> 款游戏已上线 &nbsp;·&nbsp; 纯 HTML5 &nbsp;·&nbsp; 无需下载
+    当前 <strong>3</strong> 款游戏已上线 &nbsp;·&nbsp; 纯 HTML5 &nbsp;·&nbsp; 无需下载
   </div>
 
   <div class="scroll-hint">
@@ -591,7 +591,7 @@ body {
     <div class="section-label">全部游戏</div>
 
     <!-- 主卡片：消消乐 -->
-    <a class="main-card" href="match3.html" data-transition>
+    <a class="main-card" href="games/match3/index.html" data-transition>
       <div class="mc-cover">
         <img src="test1.jpg" alt="图片消消乐" draggable="false">
       </div>
@@ -616,14 +616,14 @@ body {
         </div>
       </a>
 
-      <div class="sub-card placeholder">
+      <a class="sub-card" href="games/snake/index.html" data-transition>
         <div class="sc-cover-placeholder">🐍</div>
         <div class="sc-info">
-          <div class="sc-tag coming">COMING SOON</div>
+          <div class="sc-tag new">NEW</div>
           <div class="sc-title">贪吃蛇</div>
-          <div class="sc-desc">经典重现</div>
+          <div class="sc-desc">Classic Snake</div>
         </div>
-      </div>
+      </a>
     </div>
   </div>
 </section>
@@ -639,7 +639,7 @@ body {
     </div>
 
     <div class="footer-meta">
-      <span>2 款已上线</span>
+      <span>3 款已上线</span>
       <span>v1.0.0</span>
       <span>2026 · 07</span>
     </div>
@@ -648,7 +648,6 @@ body {
 
     <div class="footer-roadmap">
       <span>即将到来</span><br>
-      🐍 贪吃蛇 · 2026 Q3<br>
       🔢 2048 · 2026 Q4<br>
       🎮 更多 · TBD
     </div>
@@ -806,12 +805,12 @@ if (featuredCard) featuredObserver.observe(featuredCard);
 
 // ===== Stats 数据聚合 =====
 (function loadStats() {
-  document.getElementById('statGames').textContent = '2';
+  document.getElementById('statGames').textContent = '3';
 
   let totalPlays = 0, bestStar = 0;
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key.startsWith('match3_') && !key.startsWith('puzzle_')) continue;
+    if (!key.startsWith('match3_') && !key.startsWith('puzzle_') && !key.startsWith('snake_')) continue;
     try {
       const data = JSON.parse(localStorage.getItem(key));
       if (!data) continue;
